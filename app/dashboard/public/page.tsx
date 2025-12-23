@@ -4,8 +4,9 @@ import ShareButton from '@/app/ui/share-button';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 
-export default async function PublicDashboardPage({ searchParams }: { searchParams: { tenant?: string } }) {
-    const tenantSlug = searchParams.tenant;
+export default async function PublicDashboardPage({ searchParams }: { searchParams: Promise<{ tenant?: string }> }) {
+    const resolvedSearchParams = await searchParams;
+    const tenantSlug = resolvedSearchParams.tenant;
 
     if (!tenantSlug) {
         return (

@@ -1,4 +1,4 @@
-import { getUserTenant, getLatestConfig } from '@/lib/data';
+import { getUserTenant, getAllConfigs } from '@/lib/data';
 import CreateMassForm from '@/app/ui/masses/create-form';
 import Link from 'next/link';
 
@@ -9,7 +9,7 @@ export default async function CreateMassPage() {
         return <p>Organização não encontrada. Por favor, configure uma organização.</p>;
     }
 
-    const config = await getLatestConfig(tenant.id);
+    const configs = await getAllConfigs(tenant.id);
 
     return (
         <div className="w-full">
@@ -18,7 +18,7 @@ export default async function CreateMassPage() {
                     &larr; Voltar para Missas
                 </Link>
             </div>
-            <CreateMassForm tenant={tenant} config={config} />
+            <CreateMassForm tenant={tenant} configs={configs} />
         </div>
     );
 }

@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { Button } from '@/app/ui/button';
 import { deleteConfig } from '@/lib/actions';
 import { format } from 'date-fns';
+import Pagination from '@/app/ui/pagination';
+import { prisma } from '@/lib/prisma';
+import { Suspense } from 'react';
 
 type Config = Awaited<ReturnType<typeof getConfigs>>[0];
 
@@ -16,7 +19,11 @@ interface ParticipantConfig {
 
 type RoleEntry = [string, number] | string;
 
-export default async function ConfigPage() {
+interface ConfigPageProps {
+    searchParams: Promise<{ page?: string }>;
+}
+
+export default async function ConfigPage({ searchParams }: ConfigPageProps) {
     const tenant = await getUserTenant();
 
     if (!tenant) {
@@ -29,7 +36,26 @@ export default async function ConfigPage() {
         );
     }
 
-    const configs = await getConfigs(tenant.id);
+    // Get page from search params
+    const resolvedSearchParams = await searchParams;
+    const currentPage = parseInt(resolvedSearchParams.page || '1', 10);
+    const itemsPerPage = 10;
+    const skip = (currentPage - 1) * itemsPerPage;
+
+    // Fetch total count for pagination
+    const totalCount = await prisma.config.count({
+        where: { tenantId: tenant.id }
+    });
+
+    const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+    // Fetch configs with pagination
+    const configs = await prisma.config.findMany({
+        where: { tenantId: tenant.id },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: itemsPerPage
+    });
 
     return (
         <div className="w-full">
@@ -82,14 +108,22 @@ export default async function ConfigPage() {
                                         {format(new Date(createdAt), 'dd/MM/yyyy HH:mm')}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <form action={async () => {
-                                            'use server';
-                                            await deleteConfig(config.id);
-                                        }}>
-                                            <button className="text-red-600 hover:text-red-700 font-medium text-sm transition-colors">
-                                                Excluir
-                                            </button>
-                                        </form>
+                                        <div className="flex items-center gap-3">
+                                            <Link 
+                                                href={`/dashboard/config/${config.id}/edit`}
+                                                className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+                                            >
+                                                Editar
+                                            </Link>
+                                            <form action={async () => {
+                                                'use server';
+                                                await deleteConfig(config.id);
+                                            }}>
+                                                <button className="text-red-600 hover:text-red-700 font-medium text-sm transition-colors">
+                                                    Excluir
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             );
@@ -104,6 +138,18 @@ export default async function ConfigPage() {
                     </tbody>
                 </table>
             </div>
+
+            {totalPages > 1 && (
+                <div className="mt-6">
+                    <Suspense fallback={<div className="text-center text-gray-500">Carregando...</div>}>
+                        <Pagination 
+                            currentPage={currentPage} 
+                            totalPages={totalPages} 
+                            basePath="/dashboard/config"
+                        />
+                    </Suspense>
+                </div>
+            )}
         </div>
     );
 }

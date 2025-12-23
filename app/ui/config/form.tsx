@@ -1,22 +1,64 @@
 'use client';
 
-import { createConfig } from '@/lib/actions';
+import { createConfig, updateConfig } from '@/lib/actions';
 import { useActionState } from 'react';
 import { Button } from '../button';
 import { toast } from 'sonner';
-import { useEffect, useState } from 'react';
-import { TagInput } from '../tag-input';
+import { useEffect, useState, useRef } from 'react';
+import { X } from 'lucide-react';
+import CronBuilder from './cron-builder';
 
 type RoleEntry = [string, number]; // [role, quantidade]
 
-export default function ConfigForm() {
-    const [state, dispatch, isPending] = useActionState(createConfig, undefined);
+interface Config {
+    id: string;
+    cronConfig: { frequency?: string[] };
+    participantConfig: { roles?: [string, number][] };
+}
 
-    // State for single cron expression (TAG)
-    const [cronExpression, setCronExpression] = useState<string>('');
+interface ConfigFormProps {
+    config?: Config | null;
+}
+
+export default function ConfigForm({ config }: ConfigFormProps) {
+    const isEditMode = !!config;
+    
+    const updateConfigWithId = async (prevState: unknown, formData: FormData) => {
+        if (!config) return { message: 'Config não encontrada' };
+        return await updateConfig(config.id, prevState, formData);
+    };
+
+    const [state, dispatch, isPending] = useActionState(
+        isEditMode ? updateConfigWithId : createConfig,
+        undefined
+    );
+
+    // Initialize state from config if editing
+    const getInitialCronExpression = () => {
+        if (config?.cronConfig?.frequency && config.cronConfig.frequency.length > 0) {
+            return config.cronConfig.frequency[0];
+        }
+        return '';
+    };
+
+    const getInitialRoleEntries = (): RoleEntry[] => {
+        if (config?.participantConfig?.roles && config.participantConfig.roles.length > 0) {
+            return config.participantConfig.roles;
+        }
+        return [['', 1]];
+    };
+
+    // State for single cron expression
+    const [cronExpression, setCronExpression] = useState<string>(getInitialCronExpression());
 
     // State for role entries: array of [role, quantidade]
-    const [roleEntries, setRoleEntries] = useState<RoleEntry[]>([['', 1]]);
+    const [roleEntries, setRoleEntries] = useState<RoleEntry[]>(getInitialRoleEntries());
+    
+    // Refs para os inputs de nome do role (para focar após adicionar)
+    const roleInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+    
+    // State para rastrear o último índice adicionado (para focar)
+    const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
 
     useEffect(() => {
         if (state?.message) {
@@ -30,8 +72,22 @@ export default function ConfigForm() {
         }
     }, [state]);
 
+    // Focus no novo input quando um role é adicionado
+    useEffect(() => {
+        if (lastAddedIndex !== null) {
+            const input = roleInputRefs.current.get(lastAddedIndex);
+            if (input) {
+                // Usar setTimeout para garantir que o DOM foi atualizado
+                setTimeout(() => {
+                    input.focus();
+                }, 0);
+            }
+            setLastAddedIndex(null);
+        }
+    }, [lastAddedIndex]);
+
     const handleSubmit = async (formData: FormData) => {
-        // Add single cron expression (TAG)
+        // Add single cron expression
         if (cronExpression.trim() !== '') {
             formData.append('cron_0', cronExpression.trim());
         }
@@ -48,14 +104,15 @@ export default function ConfigForm() {
     };
 
     // Cron expression handler
-    const updateCronExpression = (tags: string[]) => {
-        // TagInput returns array, we take the first tag or empty string
-        setCronExpression(tags.length > 0 ? tags[0] : '');
+    const updateCronExpression = (cron: string) => {
+        setCronExpression(cron);
     };
 
     // Role entry handlers
     const addRoleEntry = () => {
+        const newIndex = roleEntries.length;
         setRoleEntries([...roleEntries, ['', 1]]);
+        setLastAddedIndex(newIndex);
     };
 
     const removeRoleEntry = (index: number) => {
@@ -78,39 +135,35 @@ export default function ConfigForm() {
     return (
         <form action={handleSubmit} className="space-y-6 max-w-2xl bg-white p-8 rounded-lg shadow-sm border border-gray-200">
             <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">Configurações</h2>
-                <p className="text-sm text-gray-500">Configure expressões cron e roles de participantes</p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                    {isEditMode ? 'Editar Configuração' : 'Configurações'}
+                </h2>
+                <p className="text-sm text-gray-500">
+                    {isEditMode 
+                        ? 'Atualize as expressões cron e roles de participantes'
+                        : 'Configure expressões cron e roles de participantes'
+                    }
+                </p>
             </div>
 
             {/* Cron Config Section */}
             <div className="border-t border-gray-200 pt-6 mt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuração de Cron</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuração de Agendamento</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                    Configure a expressão cron de execução (formato: min hour day month weekday)
+                    Configure quando as missas devem ser agendadas automaticamente
                 </p>
                 <div>
-                    <TagInput
-                        tags={cronExpression ? [cronExpression] : []}
-                        onTagsChange={updateCronExpression}
-                        placeholder="Digite a expressão cron e pressione Enter (ex: 30 19 * * 6)"
-                        label="Expressão Cron"
-                        maxTags={1}
+                    <CronBuilder
+                        value={cronExpression}
+                        onChange={updateCronExpression}
                     />
                 </div>
             </div>
 
             {/* Participant Config Section */}
             <div className="border-t border-gray-200 pt-6 mt-6">
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Configuração de Participantes</h3>
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={addRoleEntry}
-                        className="text-sm"
-                    >
-                        + Adicionar Role
-                    </Button>
                 </div>
                 <p className="text-sm text-gray-600 mb-4">
                     Configure os roles disponíveis e a quantidade de participantes para cada role
@@ -123,6 +176,13 @@ export default function ConfigForm() {
                                     Nome do Role
                                 </label>
                                 <input
+                                    ref={(el) => {
+                                        if (el) {
+                                            roleInputRefs.current.set(index, el);
+                                        } else {
+                                            roleInputRefs.current.delete(index);
+                                        }
+                                    }}
                                     type="text"
                                     value={role}
                                     onChange={(e) => updateRoleName(index, e.target.value)}
@@ -149,19 +209,35 @@ export default function ConfigForm() {
                                 <button
                                     type="button"
                                     onClick={() => removeRoleEntry(index)}
-                                    className="text-red-600 hover:text-red-700 font-medium text-sm px-3 py-2 transition-colors mt-6"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg p-2 transition-colors mt-6 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                                    aria-label="Remover"
                                 >
-                                    Remover
+                                    <X className="h-5 w-5" />
                                 </button>
                             )}
                         </div>
                     ))}
                 </div>
+                <div className="mt-4">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={addRoleEntry}
+                        className="text-sm"
+                    >
+                        + Adicionar Role
+                    </Button>
+                </div>
             </div>
 
             <div className="pt-4">
                 <Button variant="form-primary" className="w-full justify-center" disabled={isPending}>
-                    {isPending ? 'Salvando...' : 'Salvar Configuração'}
+                    {isPending 
+                        ? 'Salvando...' 
+                        : isEditMode 
+                            ? 'Atualizar Configuração' 
+                            : 'Salvar Configuração'
+                    }
                 </Button>
             </div>
         </form>

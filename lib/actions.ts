@@ -8,6 +8,7 @@ import bcrypt from 'bcrypt';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { format } from 'date-fns';
+import { fromLocalDateTime } from '@/lib/date-utils';
 
 // Type guard for Prisma errors
 function isPrismaError(error: unknown): error is { code: string; meta?: { target?: unknown } } {
@@ -241,24 +242,55 @@ export async function upsertTenant(prevState: unknown, formData: FormData) {
 
 const MassSchema = z.object({
     tenantId: z.string(),
-    date: z.string(), // ISO datetime string from combined date and time
+    date: z.string(), // ISO datetime string from combined date and time (local, no timezone)
+    type: z.enum(['Missa', 'Encontro']).default('Missa'),
+    description: z.string().min(1, 'Descrição é obrigatória'),
+    configId: z.string().optional().nullable(),
 });
 
 export async function createMass(prevState: unknown, formData: FormData) {
     const session = await auth();
     if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
 
+    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!user) return { message: 'Usuário não encontrado. Por favor, faça login novamente.' };
+
+    const configIdValue = formData.get('configId');
+    const configId = configIdValue && configIdValue.toString().trim() !== '' 
+        ? configIdValue.toString().trim() 
+        : null;
+
+    // Validate configId belongs to the same tenant if provided
+    if (configId) {
+        const config = await prisma.config.findUnique({
+            where: { id: configId },
+            select: { tenantId: true }
+        });
+        
+        if (!config || config.tenantId !== user.tenantId) {
+            return { message: 'Configuração não encontrada ou não autorizada.' };
+        }
+    }
+
+    const typeValue = formData.get('type')?.toString() || 'Missa';
+    const descriptionValue = formData.get('description')?.toString() || '';
+
     const validatedFields = MassSchema.safeParse({
         tenantId: formData.get('tenantId'),
         date: formData.get('date'),
+        type: typeValue,
+        description: descriptionValue,
+        configId: configId,
     });
 
     if (!validatedFields.success) {
         return { message: 'Dados inválidos. Por favor, verifique as informações preenchidas.' };
     }
 
-    const { tenantId, date } = validatedFields.data;
-    const dateObj = new Date(date);
+    const { tenantId, date, type, description } = validatedFields.data;
+    
+    // Convert local datetime string to Date (treating as local time, no timezone conversion)
+    const dateObj = fromLocalDateTime(date);
     const slug = format(dateObj, "yyyyMMdd_HHmm");
 
     // Parse participants from formData dynamic keys
@@ -282,8 +314,11 @@ export async function createMass(prevState: unknown, formData: FormData) {
         await prisma.mass.create({
             data: {
                 tenantId,
+                configId: configId || null,
                 date: dateObj,
                 slug,
+                type,
+                description,
                 participants: participants,
             }
         });
@@ -328,17 +363,42 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
         return { message: 'Missa não encontrada ou não autorizada.' };
     }
 
+    const configIdValue = formData.get('configId');
+    const configId = configIdValue && configIdValue.toString().trim() !== '' 
+        ? configIdValue.toString().trim() 
+        : null;
+
+    // Validate configId belongs to the same tenant if provided
+    if (configId) {
+        const config = await prisma.config.findUnique({
+            where: { id: configId },
+            select: { tenantId: true }
+        });
+        
+        if (!config || config.tenantId !== user.tenantId) {
+            return { message: 'Configuração não encontrada ou não autorizada.' };
+        }
+    }
+
+    const typeValue = formData.get('type')?.toString() || 'Missa';
+    const descriptionValue = formData.get('description')?.toString() || '';
+
     const validatedFields = MassSchema.safeParse({
         tenantId: formData.get('tenantId'),
         date: formData.get('date'),
+        type: typeValue,
+        description: descriptionValue,
+        configId: configId,
     });
 
     if (!validatedFields.success) {
         return { message: 'Dados inválidos. Por favor, verifique as informações preenchidas.' };
     }
 
-    const { date } = validatedFields.data;
-    const dateObj = new Date(date);
+    const { date, type, description } = validatedFields.data;
+    
+    // Convert local datetime string to Date (treating as local time, no timezone conversion)
+    const dateObj = fromLocalDateTime(date);
     const slug = format(dateObj, "yyyyMMdd_HHmm");
 
     // Parse participants from formData dynamic keys
@@ -363,6 +423,9 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
             data: {
                 date: dateObj,
                 slug,
+                type,
+                description,
+                configId: configId || null,
                 participants: participants,
             }
         });
@@ -538,6 +601,108 @@ export async function createConfig(prevState: unknown, formData: FormData) {
             return { message: 'Erro ao criar configuração. Por favor, tente novamente.' };
         }
         return { message: 'Erro ao criar configuração. Por favor, verifique os dados e tente novamente.' };
+    }
+
+    revalidatePath('/dashboard/config');
+    redirect('/dashboard/config');
+}
+
+export async function updateConfig(id: string, prevState: unknown, formData: FormData) {
+    const session = await auth();
+    if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
+
+    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!user) return { message: 'Usuário não encontrado. Por favor, faça login novamente.' };
+
+    // Verify the config belongs to the user's tenant
+    const existingConfig = await prisma.config.findUnique({
+        where: { id },
+        select: { tenantId: true }
+    });
+
+    if (!existingConfig || existingConfig.tenantId !== user.tenantId) {
+        return { message: 'Configuração não encontrada ou não autorizada.' };
+    }
+
+    // Parse cron expressions (TAGs) from formData
+    const frequencies: string[] = [];
+    formData.forEach((value, key) => {
+        if (key.startsWith('cron_') && value.toString().trim() !== '') {
+            frequencies.push(value.toString().trim());
+        }
+    });
+
+    // Parse roles with quantities from formData
+    const roleEntries: Record<number, { role: string; qty: number }> = {};
+    formData.forEach((value, key) => {
+        if (key.startsWith('role_')) {
+            const index = parseInt(key.replace('role_', ''));
+            if (!isNaN(index)) {
+                if (!roleEntries[index]) {
+                    roleEntries[index] = { role: '', qty: 0 };
+                }
+                roleEntries[index].role = value.toString().trim();
+            }
+        } else if (key.startsWith('qty_')) {
+            const index = parseInt(key.replace('qty_', ''));
+            if (!isNaN(index)) {
+                if (!roleEntries[index]) {
+                    roleEntries[index] = { role: '', qty: 0 };
+                }
+                const qty = parseInt(value.toString());
+                roleEntries[index].qty = isNaN(qty) ? 0 : qty;
+            }
+        }
+    });
+
+    // Convert to array of tuples [role, quantity], filtering out incomplete entries
+    const roles: [string, number][] = [];
+    Object.keys(roleEntries)
+        .map(k => parseInt(k))
+        .sort((a, b) => a - b)
+        .forEach(index => {
+            const entry = roleEntries[index];
+            if (entry.role && entry.qty > 0) {
+                roles.push([entry.role, entry.qty]);
+            }
+        });
+
+    const validatedFields = ConfigSchema.safeParse({
+        tenantId: user.tenantId,
+        cronConfig: {
+            frequency: frequencies
+        },
+        participantConfig: {
+            roles: roles
+        }
+    });
+
+    if (!validatedFields.success) {
+        const errorMessages = validatedFields.error.issues
+            .map((issue) => issue.message).join(' ');
+        
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Por favor, verifique os dados preenchidos. ' + errorMessages,
+        };
+    }
+
+    const data = validatedFields.data;
+
+    try {
+        await prisma.config.update({
+            where: { id },
+            data: {
+                cronConfig: data.cronConfig,
+                participantConfig: data.participantConfig
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        if (isPrismaError(err)) {
+            return { message: 'Erro ao atualizar configuração. Por favor, tente novamente.' };
+        }
+        return { message: 'Erro ao atualizar configuração. Por favor, verifique os dados e tente novamente.' };
     }
 
     revalidatePath('/dashboard/config');

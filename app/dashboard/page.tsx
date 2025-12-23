@@ -2,8 +2,8 @@ import { getUpcomingMasses, getUserTenant, getLatestConfig } from '@/lib/data';
 import MassCarousel from '@/app/ui/dashboard/mass-carousel';
 import CatholicMessageBanner from '@/app/ui/dashboard/catholic-message-banner';
 import ShareButton from '@/app/ui/share-button';
+import { generateShareUrl } from '@/app/ui/share-url-generator';
 import { auth } from '@/auth';
-import { headers } from 'next/headers';
 
 export default async function Dashboard() {
     const session = await auth();
@@ -14,12 +14,9 @@ export default async function Dashboard() {
     const config = tenant ? await getLatestConfig(tenant.id) : null;
 
     // Build the public dashboard URL for sharing
-    const headersList = await headers();
-    const host = headersList.get('host') || 'localhost:3000';
-    const protocol = headersList.get('x-forwarded-proto') || 'http';
     const publicDashboardUrl = tenant 
-        ? `${protocol}://${host}/dashboard/public?tenant=${tenant.id}`
-        : `${protocol}://${host}/dashboard`;
+        ? await generateShareUrl({ type: 'dashboard', tenantId: tenant.id })
+        : null;
 
     return (
         <div className="w-full space-y-8">
@@ -34,7 +31,7 @@ export default async function Dashboard() {
                         {tenant?.responsibleName ? `Gestão: ${tenant.responsibleName}` : 'Complete o cadastro da sua organização para começar.'}
                     </p>
                 </div>
-                {tenant && (
+                {tenant && publicDashboardUrl && (
                     <ShareButton 
                         url={publicDashboardUrl}
                         title={`${tenant.denomination || tenant.name} - Próximas Missas`}

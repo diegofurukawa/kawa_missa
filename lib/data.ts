@@ -27,10 +27,28 @@ export async function getUpcomingMasses(tenantId: string) {
                 gte: new Date(),
             }
         },
+        include: {
+            config: true
+        },
         orderBy: {
             date: 'asc'
         },
         take: 7
+    }).catch((error) => {
+        // Fallback if config relation doesn't exist yet
+        console.error('Error fetching masses with config:', error);
+        return prisma.mass.findMany({
+            where: {
+                tenantId: tenantId,
+                date: {
+                    gte: new Date(),
+                }
+            },
+            orderBy: {
+                date: 'asc'
+            },
+            take: 7
+        });
     });
 }
 
@@ -56,6 +74,29 @@ export async function getLatestConfig(tenantId: string) {
     });
 }
 
+export async function getAllConfigs(tenantId: string) {
+    return await prisma.config.findMany({
+        where: {
+            tenantId: tenantId
+        },
+        orderBy: {
+            createdAt: 'desc'
+        }
+    });
+}
+
+export async function getConfigById(id: string) {
+    try {
+        const config = await prisma.config.findUnique({
+            where: { id }
+        });
+        return config;
+    } catch (error) {
+        console.error('Failed to fetch config by id:', error);
+        return null;
+    }
+}
+
 export async function getTenantBySlug(slug: string) {
     // For now, we'll use the tenant ID as the slug identifier
     // In the future, this could be extended to use a dedicated slug field
@@ -76,11 +117,22 @@ export async function getTenantBySlug(slug: string) {
 export async function getMassById(id: string) {
     try {
         const mass = await prisma.mass.findUnique({
-            where: { id }
+            where: { id },
+            include: {
+                config: true
+            }
         });
         return mass;
     } catch (error) {
         console.error('Failed to fetch mass by id:', error);
-        return null;
+        // Fallback without config relation
+        try {
+            return await prisma.mass.findUnique({
+                where: { id }
+            });
+        } catch (fallbackError) {
+            console.error('Fallback query also failed:', fallbackError);
+            return null;
+        }
     }
 }
