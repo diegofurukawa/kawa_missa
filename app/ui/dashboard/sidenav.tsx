@@ -152,7 +152,22 @@ export default function SideNav({ isOpen, onClose }: SideNavProps) {
                     {/* Logout button - fixed at bottom */}
                     <button
                         className="flex h-[48px] items-center gap-2 rounded-lg bg-white p-3 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors md:justify-start md:p-2 md:px-3 flex-shrink-0 mt-auto"
-                        onClick={() => signOut({ callbackUrl: '/login', redirect: true })}
+                        onClick={() => {
+                            // Immediately redirect to prevent NextAuth from using NEXTAUTH_URL
+                            // We'll handle the sign out on the login page or via API call
+                            const loginUrl = window.location.origin + '/login';
+                            
+                            // Make signout API call in background (fire and forget)
+                            fetch('/api/auth/signout', { 
+                                method: 'POST',
+                                credentials: 'include'
+                            }).catch(() => {
+                                // Ignore errors - we're redirecting anyway
+                            });
+                            
+                            // Immediately redirect to login page
+                            window.location.href = loginUrl;
+                        }}
                     >
                         <LogOut className="w-6 flex-shrink-0" />
                         <div className="hidden md:block">Sign Out</div>

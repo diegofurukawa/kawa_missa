@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { format } from 'date-fns';
 import { fromLocalDateTime } from '@/lib/date-utils';
+import { headers } from 'next/headers';
 
 // Type guard for Prisma errors
 function isPrismaError(error: unknown): error is { code: string; meta?: { target?: unknown } } {
@@ -28,19 +29,43 @@ export async function authenticate(
     formData: FormData,
 ) {
     try {
-        await signIn('credentials', { 
+        // Get the current request origin from headers to maintain URL consistency
+        const headersList = await headers();
+        const host = headersList.get('host') || 'localhost:3115';
+        const protocol = headersList.get('x-forwarded-proto') || headersList.get('x-forwarded-ssl') === 'on' ? 'https' : 'http';
+        
+        // Normalize hostname: if it's 0.0.0.0, use localhost instead
+        // This ensures URL consistency throughout the session
+        let normalizedHost = host;
+        if (host.startsWith('0.0.0.0:')) {
+            normalizedHost = host.replace('0.0.0.0:', 'localhost:');
+        } else if (host === '0.0.0.0') {
+            normalizedHost = 'localhost:3115';
+        }
+        
+        const origin = `${protocol}://${normalizedHost}`;
+        
+        // Use redirect: false to control the redirect URL manually
+        // This ensures we use the current request origin, not NEXTAUTH_URL
+        const result = await signIn('credentials', { 
             ...Object.fromEntries(formData), 
-            redirectTo: '/dashboard',
-            redirect: true 
+            redirect: false 
         });
-        // If we get here, redirect happened successfully
-        return undefined;
+        
+        if (result?.error) {
+            if (result.error === 'CredentialsSignin') {
+                return 'Credenciais inválidas. Por favor, verifique seu email e senha.';
+            }
+            return 'Algo deu errado. Por favor, tente novamente.';
+        }
+        
+        // Use relative redirect - Next.js will use the current request origin
+        // The middleware will normalize the hostname to maintain consistency
+        redirect('/dashboard');
     } catch (error) {
-        // Next.js redirects throw errors, but that's expected behavior
         // Check if it's a redirect error (which means success)
         if (error && typeof error === 'object') {
             const errorObj = error as Record<string, unknown>;
-            // Next.js redirect errors have specific structure
             if (
                 (typeof errorObj.digest === 'string' && errorObj.digest.startsWith('NEXT_REDIRECT')) ||
                 (typeof errorObj.message === 'string' && errorObj.message.includes('NEXT_REDIRECT')) ||

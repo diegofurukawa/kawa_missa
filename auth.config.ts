@@ -12,8 +12,22 @@ export const authConfig = {
             const isOnOnboarding = nextUrl.pathname.startsWith('/onboarding');
             const isOnPublic = nextUrl.pathname.startsWith('/dashboard/public');
 
-            // Get base URL from environment or use request origin as fallback
-            const baseUrl = process.env.NEXTAUTH_URL || nextUrl.origin;
+            // Normalize hostname to maintain consistency
+            // Always normalize 0.0.0.0 to localhost to prevent URL changes during navigation
+            // This ensures that if user starts with localhost, it stays localhost
+            let hostname = nextUrl.hostname;
+            const port = nextUrl.port || (nextUrl.protocol === 'https:' ? '443' : '80');
+            const protocol = nextUrl.protocol;
+            
+            // Always normalize 0.0.0.0 and 127.0.0.1 to localhost
+            // This prevents URL changes from localhost to 0.0.0.0 during navigation
+            if (hostname === '0.0.0.0' || hostname === '127.0.0.1') {
+                hostname = 'localhost';
+            }
+            
+            // Construct base URL with normalized hostname
+            // This ensures URL consistency throughout the entire session
+            const baseUrl = `${protocol}//${hostname}${port && port !== '80' && port !== '443' ? `:${port}` : ''}`;
 
             // Allow public routes
             if (isOnLogin || isOnOnboarding || isOnPublic) {

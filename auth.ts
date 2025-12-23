@@ -15,6 +15,11 @@ async function getUser(email: string) {
     }
 }
 
+// NEXTAUTH_URL should NOT be set when running locally
+// When NEXTAUTH_URL is undefined, NextAuth uses trustHost: true and the request origin
+// This allows localhost/0.0.0.0 to work correctly
+// Only set NEXTAUTH_URL in production environments
+
 export const { auth, signIn, signOut, handlers } = NextAuth({
     ...authConfig,
     secret: process.env.AUTH_SECRET,
