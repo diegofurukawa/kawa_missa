@@ -2,8 +2,12 @@
 CREATE TABLE "Tenant" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "denomination" TEXT,
+    "legalName" TEXT,
+    "document" TEXT,
     "phone" TEXT,
     "email" TEXT,
+    "responsibleName" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Tenant_pkey" PRIMARY KEY ("id")
@@ -24,22 +28,9 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "Organization" (
-    "id" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
-    "denomination" TEXT NOT NULL,
-    "legalName" TEXT NOT NULL,
-    "document" TEXT NOT NULL,
-    "phone" TEXT,
-    "responsibleName" TEXT NOT NULL,
-
-    CONSTRAINT "Organization_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "Address" (
     "id" TEXT NOT NULL,
-    "organizationId" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
     "zipCode" TEXT NOT NULL,
     "street" TEXT NOT NULL,
     "number" TEXT NOT NULL,
@@ -55,9 +46,11 @@ CREATE TABLE "Address" (
 -- CreateTable
 CREATE TABLE "Config" (
     "id" TEXT NOT NULL,
-    "organizationId" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
     "cronConfig" JSONB NOT NULL,
     "participantConfig" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Config_pkey" PRIMARY KEY ("id")
 );
@@ -65,10 +58,9 @@ CREATE TABLE "Config" (
 -- CreateTable
 CREATE TABLE "Mass" (
     "id" TEXT NOT NULL,
-    "organizationId" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
-    "priest" TEXT NOT NULL,
     "participants" JSONB NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -80,25 +72,19 @@ CREATE TABLE "Mass" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Address_organizationId_key" ON "Address"("organizationId");
+CREATE UNIQUE INDEX "Address_tenantId_key" ON "Address"("tenantId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Config_organizationId_key" ON "Config"("organizationId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Mass_organizationId_slug_key" ON "Mass"("organizationId", "slug");
+CREATE UNIQUE INDEX "Mass_tenantId_slug_key" ON "Mass"("tenantId", "slug");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Organization" ADD CONSTRAINT "Organization_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Address" ADD CONSTRAINT "Address_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Address" ADD CONSTRAINT "Address_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Config" ADD CONSTRAINT "Config_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Config" ADD CONSTRAINT "Config_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Mass" ADD CONSTRAINT "Mass_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Mass" ADD CONSTRAINT "Mass_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
