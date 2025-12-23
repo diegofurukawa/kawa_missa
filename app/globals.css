@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  /* Primary Colors - VERDE para ações principais */
+  --color-primary: 109 119 73; /* #6d7749 */
+  --color-primary-hover: 93 101 62; /* darker green */
+  --color-primary-light: 141 153 95; /* lighter green */
+  
+  /* Secondary Colors - ROXO para ações secundárias */
+  --color-secondary: 101 70 184; /* #6546b8 */
+  --color-secondary-hover: 86 59 157; /* darker purple */
+  --color-secondary-light: 130 100 200; /* lighter purple */
+  
+  /* Tertiary Colors - Azul para ações terciárias */
+  --color-tertiary: 59 130 246; /* blue-500 */
+  --color-tertiary-hover: 37 99 235; /* blue-600 */
+  --color-tertiary-light: 147 197 253; /* blue-300 */
+  
+  /* Form Primary - Verde para botões de salvar */
+  --color-form-primary: 109 119 73; /* #6d7749 */
+  --color-form-primary-hover: 93 101 62; /* darker green */
+  --color-form-primary-light: 141 153 95; /* lighter green */
+  
+  /* Tag/Chip Colors - Cinza claro para tags */
+  --color-tag-bg: 243 244 246; /* gray-100 */
+  --color-tag-text: 55 65 81; /* gray-700 */
+  --color-tag-border: 229 231 235; /* gray-200 */
+  --color-tag-hover: 229 231 235; /* gray-200 */
+  
+  /* Status Colors */
+  --color-status-pending: 239 68 68; /* red-500 */
+  --color-status-scheduled: 234 179 8; /* yellow-500 */
+  --color-status-rescheduled: 249 115 22; /* orange-500 */
+  --color-status-performed: 34 197 94; /* green-500 */
+  --color-status-disapproved: 239 68 68; /* red-500 */
+  --color-status-total: 59 130 246; /* blue-500 */
+  
+  /* Background Colors - #f6f5f8 */
+  --color-bg-primary: 246 245 248; /* #f6f5f8 */
+  --color-bg-secondary: 249 250 251; /* gray-50 */
+  --color-bg-tertiary: 243 244 246; /* gray-100 */
+  
+  /* Text Colors */
+  --color-text-primary: 17 24 39; /* gray-900 */
+  --color-text-secondary: 55 65 81; /* gray-700 */
+  --color-text-tertiary: 107 114 128; /* gray-500 */
+  
+  /* Border Colors */
+  --color-border: 229 231 235; /* gray-200 */
+  --color-border-light: 243 244 246; /* gray-100 */
+}
+
+/* Utility classes for colors */
+.bg-primary {
+  background-color: rgb(var(--color-primary));
+}
+
+.bg-secondary {
+  background-color: rgb(var(--color-secondary));
+}
+
+.bg-tertiary {
+  background-color: rgb(var(--color-tertiary));
+}
+
+.bg-form-primary {
+  background-color: rgb(var(--color-form-primary));
+}
+
+.text-primary {
+  color: rgb(var(--color-primary));
+}
+
+.text-secondary {
+  color: rgb(var(--color-secondary));
+}
+
+.text-tertiary {
+  color: rgb(var(--color-tertiary));
+}
+
+.text-form-primary {
+  color: rgb(var(--color-form-primary));
+}
