@@ -4,11 +4,23 @@ import { signIn, auth } from '@/auth';
 import { AuthError } from 'next-auth';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { format } from 'date-fns';
+
+// Type guard for Prisma errors
+function isPrismaError(error: unknown): error is { code: string; meta?: { target?: unknown } } {
+    if (typeof error !== 'object' || error === null) {
+        return false;
+    }
+    const errorObj = error as Record<string, unknown>;
+    return (
+        'code' in errorObj &&
+        typeof errorObj.code === 'string' &&
+        errorObj.code.startsWith('P')
+    );
+}
 
 export async function authenticate(
     prevState: string | undefined,
@@ -26,11 +38,13 @@ export async function authenticate(
         // Next.js redirects throw errors, but that's expected behavior
         // Check if it's a redirect error (which means success)
         if (error && typeof error === 'object') {
-            const errorObj = error as any;
+            const errorObj = error as Record<string, unknown>;
             // Next.js redirect errors have specific structure
-            if (errorObj.digest?.startsWith('NEXT_REDIRECT') || 
-                errorObj.message?.includes('NEXT_REDIRECT') ||
-                errorObj.cause?.name === 'NEXT_REDIRECT') {
+            if (
+                (typeof errorObj.digest === 'string' && errorObj.digest.startsWith('NEXT_REDIRECT')) ||
+                (typeof errorObj.message === 'string' && errorObj.message.includes('NEXT_REDIRECT')) ||
+                (errorObj.cause && typeof errorObj.cause === 'object' && 'name' in errorObj.cause && errorObj.cause.name === 'NEXT_REDIRECT')
+            ) {
                 // This is actually a successful redirect
                 throw error; // Re-throw to let Next.js handle the redirect
             }
@@ -58,7 +72,7 @@ const OnboardingSchema = z.object({
     phone: z.string().optional(),
 });
 
-export async function createTenant(prevState: any, formData: FormData) {
+export async function createTenant(prevState: unknown, formData: FormData) {
     const validatedFields = OnboardingSchema.safeParse({
         tenantName: formData.get('tenantName'),
         userName: formData.get('userName'),
@@ -78,7 +92,9 @@ export async function createTenant(prevState: any, formData: FormData) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
-        await prisma.$transaction(async (tx) => {
+        // TypeScript needs explicit type here - will be properly typed once Prisma client is generated
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await prisma.$transaction(async (tx: any) => {
             const tenant = await tx.tenant.create({
                 data: {
                     name: tenantName,
@@ -103,7 +119,7 @@ export async function createTenant(prevState: any, formData: FormData) {
         console.error(err);
         
         // Handle Prisma unique constraint errors
-        if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (isPrismaError(err)) {
             if (err.code === 'P2002') {
                 const target = err.meta?.target;
                 if (Array.isArray(target) && target.includes('email')) {
@@ -143,7 +159,7 @@ const TenantSchema = z.object({
     state: z.string().min(2),
 });
 
-export async function upsertTenant(prevState: any, formData: FormData) {
+export async function upsertTenant(prevState: unknown, formData: FormData) {
     const session = await auth();
     if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
 
@@ -207,7 +223,7 @@ export async function upsertTenant(prevState: any, formData: FormData) {
         });
     } catch (err) {
         console.error(err);
-        if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (isPrismaError(err)) {
             if (err.code === 'P2002') {
                 return { message: 'Já existe um registro com esses dados. Por favor, verifique as informações.' };
             }
@@ -228,7 +244,7 @@ const MassSchema = z.object({
     date: z.string(), // ISO datetime string from combined date and time
 });
 
-export async function createMass(prevState: any, formData: FormData) {
+export async function createMass(prevState: unknown, formData: FormData) {
     const session = await auth();
     if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
 
@@ -273,7 +289,7 @@ export async function createMass(prevState: any, formData: FormData) {
         });
     } catch (err) {
         console.error(err);
-        if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (isPrismaError(err)) {
             if (err.code === 'P2002') {
                 return { message: 'Já existe uma missa agendada para este horário. Por favor, escolha outro horário.' };
             }
@@ -290,12 +306,12 @@ export async function deleteMass(id: string) {
     try {
         await prisma.mass.delete({ where: { id } });
         revalidatePath('/dashboard/masses');
-    } catch (e) {
+    } catch {
         return { message: 'Failed to delete' };
     }
 }
 
-export async function updateMass(id: string, prevState: any, formData: FormData) {
+export async function updateMass(id: string, prevState: unknown, formData: FormData) {
     const session = await auth();
     if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
 
@@ -321,7 +337,7 @@ export async function updateMass(id: string, prevState: any, formData: FormData)
         return { message: 'Dados inválidos. Por favor, verifique as informações preenchidas.' };
     }
 
-    const { tenantId, date } = validatedFields.data;
+    const { date } = validatedFields.data;
     const dateObj = new Date(date);
     const slug = format(dateObj, "yyyyMMdd_HHmm");
 
@@ -352,7 +368,7 @@ export async function updateMass(id: string, prevState: any, formData: FormData)
         });
     } catch (err) {
         console.error(err);
-        if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (isPrismaError(err)) {
             if (err.code === 'P2002') {
                 return { message: 'Já existe uma missa agendada para este horário. Por favor, escolha outro horário.' };
             }
@@ -366,7 +382,7 @@ export async function updateMass(id: string, prevState: any, formData: FormData)
     redirect('/dashboard/masses');
 }
 
-export async function updateMassParticipants(id: string, prevState: any, formData: FormData) {
+export async function updateMassParticipants(id: string, prevState: unknown, formData: FormData) {
     // This action allows public (non-authenticated) access to update only participants
     // No authentication required, but we should validate the mass exists
 
@@ -405,7 +421,7 @@ export async function updateMassParticipants(id: string, prevState: any, formDat
         });
     } catch (err) {
         console.error(err);
-        if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (isPrismaError(err)) {
             return { message: 'Erro ao atualizar participantes. Por favor, tente novamente.' };
         }
         return { message: 'Erro ao atualizar participantes. Por favor, verifique os dados e tente novamente.' };
@@ -417,29 +433,6 @@ export async function updateMassParticipants(id: string, prevState: any, formDat
 }
 
 // --- CONFIG ACTIONS ---
-
-// Helper function to validate cron expression format
-function isValidCronExpression(cron: string): boolean {
-    const trimmed = cron.trim();
-    if (!trimmed) return false;
-    
-    // Cron format: min hour day month weekday (5 fields)
-    const parts = trimmed.split(/\s+/);
-    
-    if (parts.length !== 5) return false;
-    
-    // Each field should contain only valid cron characters: digits, *, -, /, and commas
-    const validCronFieldPattern = /^[\d\*\-\/,]+$/;
-    
-    // Validate each part
-    for (const part of parts) {
-        if (!part || !validCronFieldPattern.test(part)) {
-            return false;
-        }
-    }
-    
-    return true;
-}
 
 const ConfigSchema = z.object({
     tenantId: z.string().min(1, 'Tenant ID é obrigatório'),
@@ -457,7 +450,7 @@ const ConfigSchema = z.object({
     })
 });
 
-export async function createConfig(prevState: any, formData: FormData) {
+export async function createConfig(prevState: unknown, formData: FormData) {
     const session = await auth();
     if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
 
@@ -520,9 +513,8 @@ export async function createConfig(prevState: any, formData: FormData) {
     });
 
     if (!validatedFields.success) {
-        const errorMessages = validatedFields.error.errors 
-            ? validatedFields.error.errors.map(e => e.message).join(' ')
-            : 'Dados inválidos. Por favor, verifique os campos preenchidos.';
+        const errorMessages = validatedFields.error.issues
+            .map((issue) => issue.message).join(' ');
         
         return {
             errors: validatedFields.error.flatten().fieldErrors,
@@ -542,7 +534,7 @@ export async function createConfig(prevState: any, formData: FormData) {
         });
     } catch (err) {
         console.error(err);
-        if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (isPrismaError(err)) {
             return { message: 'Erro ao criar configuração. Por favor, tente novamente.' };
         }
         return { message: 'Erro ao criar configuração. Por favor, verifique os dados e tente novamente.' };

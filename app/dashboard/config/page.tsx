@@ -1,9 +1,20 @@
 import { getUserTenant, getConfigs } from '@/lib/data';
-import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { Button } from '@/app/ui/button';
 import { deleteConfig } from '@/lib/actions';
 import { format } from 'date-fns';
+
+type Config = Awaited<ReturnType<typeof getConfigs>>[0];
+
+interface CronConfig {
+    frequency?: string[];
+}
+
+interface ParticipantConfig {
+    roles?: [string, number][];
+}
+
+type RoleEntry = [string, number] | string;
 
 export default async function ConfigPage() {
     const tenant = await getUserTenant();
@@ -45,12 +56,15 @@ export default async function ConfigPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {configs.map((config) => {
-                            const cronFreq = (config.cronConfig as any)?.frequency || [];
+                        {configs.map((config: Config) => {
+                            const cronConfig = config.cronConfig as unknown as CronConfig;
+                            const cronFreq = cronConfig?.frequency || [];
                             const cronExpr = Array.isArray(cronFreq) && cronFreq.length > 0 ? cronFreq[0] : '-';
-                            const roles = (config.participantConfig as any)?.roles || [];
+                            
+                            const participantConfig = config.participantConfig as unknown as ParticipantConfig;
+                            const roles = participantConfig?.roles || [];
                             const rolesDisplay = Array.isArray(roles) 
-                                ? roles.map((r: any) => Array.isArray(r) ? `${r[0]} (${r[1]})` : r).join(', ')
+                                ? roles.map((r: RoleEntry) => Array.isArray(r) ? `${r[0]} (${r[1]})` : r).join(', ')
                                 : '-';
                             
                             // Handle createdAt - may not exist in old records

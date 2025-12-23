@@ -20,13 +20,15 @@ export default function ConfigForm() {
 
     useEffect(() => {
         if (state?.message) {
-            if (state.success) {
-                toast.success(state.message);
+            // If there are errors, it's an error state, otherwise it's just a message (likely an error too)
+            if (state.errors) {
+                toast.error(state.message);
             } else {
+                // This shouldn't normally happen as successful creates redirect
                 toast.error(state.message);
             }
         }
-    }, [state?.message, state?.success]);
+    }, [state]);
 
     const handleSubmit = async (formData: FormData) => {
         // Add single cron expression (TAG)

@@ -26,6 +26,9 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
+# Generate Prisma Client
+RUN npx prisma generate
+
 # Build the project
 RUN yarn build
 
@@ -40,6 +43,8 @@ ENV NODE_ENV production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+RUN apk add --no-cache libc6-compat
+
 COPY --from=builder /app/public ./public
 
 # Set the correct permission for prerender cache
@@ -51,9 +56,20 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma schema and migrations for deployment
+# Copy Prisma schema, config, and migrations for deployment
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+
+# Install Prisma CLI AFTER copying standalone to ensure it's in the root node_modules
+# This ensures Prisma is accessible and all dependencies (including WASM) are properly installed
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/yarn.lock* ./yarn.lock*
+RUN yarn add --production --frozen-lockfile prisma@^7.2.0 dotenv && \
+    # Copy WASM file to .bin directory if it exists in prisma package
+    if [ -f "node_modules/prisma/prisma_schema_build_bg.wasm" ]; then \
+        cp node_modules/prisma/prisma_schema_build_bg.wasm node_modules/.bin/prisma_schema_build_bg.wasm; \
+    fi && \
+    chown -R nextjs:nodejs /app/node_modules
 
 # Copy entrypoint script
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/start.sh ./scripts/start.sh
@@ -61,9 +77,10 @@ RUN chmod +x ./scripts/start.sh
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 3115
 
-ENV PORT 3000
+ENV PORT=3115
+ENV INTERNAL_PORT=3115
 # set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
 

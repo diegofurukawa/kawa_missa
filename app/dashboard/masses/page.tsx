@@ -5,6 +5,8 @@ import { format } from 'date-fns';
 import { deleteMass } from '@/lib/actions';
 import { Button } from '@/app/ui/button';
 
+type Mass = Awaited<ReturnType<typeof prisma.mass.findMany>>[0];
+
 export default async function MassesPage() {
     const tenant = await getUserTenant();
 
@@ -48,7 +50,7 @@ export default async function MassesPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {masses.map((mass) => (
+                        {masses.map((mass: Mass) => (
                             <tr key={mass.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                 <td className="whitespace-nowrap px-6 py-4 font-medium text-gray-900">
                                     {format(mass.date, 'dd/MM/yyyy HH:mm')}
