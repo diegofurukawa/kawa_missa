@@ -2,6 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { Menu, User } from 'lucide-react';
+import Image from 'next/image';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -22,6 +23,17 @@ export default function Header({ onMenuClick }: HeaderProps) {
             >
                 <Menu className="w-6 h-6 text-gray-700" />
             </button>
+
+            {/* Mobile Logo - Centralizado */}
+            <div className="md:hidden flex-1 flex items-center justify-center">
+                <Image
+                    src="/logo.jpeg"
+                    alt="Logo"
+                    width={36}
+                    height={36}
+                    className="rounded-full object-cover opacity-70"
+                />
+            </div>
 
             {/* Desktop Spacer */}
             <div className="hidden md:block w-64"></div>

@@ -45,8 +45,19 @@ export default function CatholicMessageBanner() {
     return (
         <div className="w-full bg-gradient-to-r from-[#6d7749] to-[#5d6541] rounded-lg shadow-md p-6 md:p-8">
             <div className="flex items-center justify-center gap-4 md:gap-6">
-                {/* Logo */}
-                <div className="flex-shrink-0 hidden sm:block">
+                {/* Logo à esquerda - mobile (56px com 50% opacity) */}
+                <div className="flex-shrink-0 md:hidden">
+                    <Image
+                        src="/logo.jpeg"
+                        alt="Logo"
+                        width={56}
+                        height={56}
+                        className="rounded-full object-cover border-2 border-white/30 shadow-lg opacity-50"
+                    />
+                </div>
+                
+                {/* Logo à esquerda - desktop (80px com 100% opacity) */}
+                <div className="flex-shrink-0 hidden md:block">
                     <Image
                         src="/logo.jpeg"
                         alt="Logo"
@@ -67,8 +78,8 @@ export default function CatholicMessageBanner() {
                     </p>
                 </div>
                 
-                {/* Logo (duplicado à direita para simetria) */}
-                <div className="flex-shrink-0 hidden sm:block">
+                {/* Logo (duplicado à direita para simetria) - apenas desktop */}
+                <div className="flex-shrink-0 hidden md:block">
                     <Image
                         src="/logo.jpeg"
                         alt="Logo"
