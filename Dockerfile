@@ -21,6 +21,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Copy build-time env file (valores dummy apenas para build passar)
+# Os valores reais são injetados via docker-compose no runtime
+COPY .env.build .env
+
+# Set Docker build environment variable
+ENV DOCKER_BUILD=true
+
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry during the build.
