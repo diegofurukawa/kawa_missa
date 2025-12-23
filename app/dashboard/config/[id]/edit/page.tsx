@@ -34,6 +34,13 @@ export default async function EditConfigPage({ params }: { params: Promise<{ id:
         );
     }
 
+    // Convert Prisma JsonValue types to the expected Config type
+    const configForForm = {
+        id: config.id,
+        cronConfig: (config.cronConfig as { frequency?: string[] }) || { frequency: [] },
+        participantConfig: (config.participantConfig as { roles?: [string, number][] }) || { roles: [] },
+    };
+
     return (
         <div className="w-full">
             <div className="mb-6">
@@ -41,7 +48,7 @@ export default async function EditConfigPage({ params }: { params: Promise<{ id:
                     &larr; Voltar para Configurações
                 </Link>
             </div>
-            <ConfigForm config={config} />
+            <ConfigForm config={configForForm} />
         </div>
     );
 }

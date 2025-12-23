@@ -9,7 +9,14 @@ export default async function CreateMassPage() {
         return <p>Organização não encontrada. Por favor, configure uma organização.</p>;
     }
 
-    const configs = await getAllConfigs(tenant.id);
+    const configsRaw = await getAllConfigs(tenant.id);
+
+    // Convert Prisma JsonValue types to the expected Config type
+    const configs = configsRaw.map(config => ({
+        id: config.id,
+        cronConfig: (config.cronConfig as { frequency?: string[] }) || { frequency: [] },
+        participantConfig: (config.participantConfig as { roles?: [string, number][] }) || { roles: [] },
+    }));
 
     return (
         <div className="w-full">

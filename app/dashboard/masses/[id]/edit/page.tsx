@@ -47,7 +47,14 @@ export default async function EditMassPage({ params }: { params: Promise<{ id: s
         );
     }
 
-    const configs = await getAllConfigs(tenant.id);
+    const configsRaw = await getAllConfigs(tenant.id);
+
+    // Convert Prisma JsonValue types to the expected Config type
+    const configs = configsRaw.map(config => ({
+        id: config.id,
+        cronConfig: (config.cronConfig as { frequency?: string[] }) || { frequency: [] },
+        participantConfig: (config.participantConfig as { roles?: [string, number][] }) || { roles: [] },
+    }));
 
     // Build the public edit URL using ShareUrlGenerator
     const publicEditUrl = await generateShareUrl({ type: 'mass-edit', massId });
