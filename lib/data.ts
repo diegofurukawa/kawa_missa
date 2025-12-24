@@ -136,3 +136,22 @@ export async function getMassById(id: string) {
         }
     }
 }
+
+export async function getAllTenants() {
+    try {
+        const tenants = await prisma.tenant.findMany({
+            select: {
+                id: true,
+                name: true,
+                denomination: true,
+            },
+            orderBy: {
+                name: 'asc',
+            },
+        });
+        return tenants;
+    } catch (error) {
+        console.error('Erro ao buscar tenants:', error);
+        return [];
+    }
+}

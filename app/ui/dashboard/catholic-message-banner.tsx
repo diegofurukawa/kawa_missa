@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
+interface CatholicMessageBannerProps {
+    isLoggedIn?: boolean;
+}
+
 const CATHOLIC_MESSAGES = [
     'Deus não nos dá desafios que não possamos superar com Sua graça.',
     'A oração é a chave que abre o coração de Deus.',
@@ -26,7 +30,7 @@ const CATHOLIC_MESSAGES = [
     'Deus nos ama tanto que enviou Seu Filho para nos salvar.',
 ];
 
-export default function CatholicMessageBanner() {
+export default function CatholicMessageBanner({ isLoggedIn = true }: CatholicMessageBannerProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [fade, setFade] = useState(true);
 
@@ -43,7 +47,7 @@ export default function CatholicMessageBanner() {
     }, []);
 
     return (
-        <div className="w-full bg-gradient-to-r from-[#6d7749] to-[#5d6541] rounded-lg shadow-md p-6 md:p-8">
+        <div className={`w-full bg-gradient-to-r from-[#6d7749] to-[#5d6541] rounded-lg shadow-md p-6 md:p-8 ${!isLoggedIn ? 'fixed bottom-0 left-0 right-0 z-50 rounded-none md:relative md:rounded-lg' : ''}`}>
             <div className="flex items-center justify-center gap-4 md:gap-6">
                 {/* Logo à esquerda - mobile (56px com 50% opacity) */}
                 <div className="flex-shrink-0 md:hidden">

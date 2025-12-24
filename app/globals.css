@@ -82,3 +82,13 @@
 .text-form-primary {
   color: rgb(var(--color-form-primary));
 }
+
+/* Hide scrollbar - útil para carrosséis mobile */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}

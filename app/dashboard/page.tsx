@@ -31,37 +31,43 @@ export default async function Dashboard() {
     return (
         <div className="w-full space-y-8">
 
-            {/* Welcome Section */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">
-                        {tenant?.denomination || tenant?.name || 'Bem-vindo!'}
-                    </h1>
-                    <p className="text-gray-600 mt-1.5">
-                        {tenant?.responsibleName ? `Gestão: ${tenant.responsibleName}` : 'Complete o cadastro da sua organização para começar.'}
-                    </p>
+            {/* Welcome Section - Only show for logged-in users */}
+            {isLoggedIn && (
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">
+                            {tenant?.denomination || tenant?.name || 'Bem-vindo!'}
+                        </h1>
+                        {tenant?.responsibleName && (
+                            <p className="text-gray-600 mt-1.5">
+                                Gestão: {tenant.responsibleName}
+                            </p>
+                        )}
+                    </div>
+                    {tenant && publicDashboardUrl && (
+                        <ShareButton
+                            url={publicDashboardUrl}
+                            title={`${tenant.denomination || tenant.name} - Próximas Missas`}
+                            text="Confira as próximas missas"
+                            iconOnly={true}
+                        />
+                    )}
                 </div>
-                {tenant && publicDashboardUrl && (
-                    <ShareButton 
-                        url={publicDashboardUrl}
-                        title={`${tenant.denomination || tenant.name} - Próximas Missas`}
-                        text="Confira as próximas missas"
-                        iconOnly={true}
-                    />
-                )}
-            </div>
+            )}
 
             {/* Carousel Section */}
             {tenant && (
                 <section>
-                    <h2 className="text-xl font-semibold mb-4 text-gray-800">Próximas Missas (Semana)</h2>
+                    {isLoggedIn && (
+                        <h2 className="text-xl font-semibold mb-4 text-gray-800">Próximas Missas e Encontros</h2>
+                    )}
                     <MassCarousel masses={masses} isLoggedIn={isLoggedIn} config={config} />
                 </section>
             )}
 
             {/* Catholic Message Banner */}
             <section>
-                <CatholicMessageBanner />
+                <CatholicMessageBanner isLoggedIn={isLoggedIn} />
             </section>
         </div>
     );

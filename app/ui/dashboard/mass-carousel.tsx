@@ -3,7 +3,7 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import EditParticipantsModal from '../masses/edit-participants-modal';
 
 // Define type based on Prisma return, or explicit interface
@@ -26,6 +26,29 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
     const router = useRouter();
     const [selectedMass, setSelectedMass] = useState<Mass | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Estado e refs para carrossel mobile
+    const [activeIndex, setActiveIndex] = useState(0);
+    const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // IntersectionObserver para rastrear card ativo em mobile
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.innerWidth >= 768) return;
+        if (masses.length === 0) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const index = cardRefs.current.findIndex(ref => ref === entry.target);
+                    if (index !== -1) setActiveIndex(index);
+                }
+            });
+        }, { root: containerRef.current, threshold: 0.5 });
+
+        cardRefs.current.forEach(card => card && observer.observe(card));
+        return () => observer.disconnect();
+    }, [masses.length]);
 
     if (!masses || masses.length === 0) {
         return (
@@ -53,9 +76,12 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
 
     return (
         <>
-            <div className="w-full overflow-x-auto pb-4">
-                <div className="flex space-x-4 min-w-max">
-                    {masses.map((mass) => {
+            <div
+                ref={containerRef}
+                className="w-full overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-hide"
+            >
+                <div className="flex space-x-4 min-w-max pl-[5vw] pr-[5vw] md:pl-0 md:pr-0">
+                    {masses.map((mass, index) => {
                         const participants = mass.participants as Record<string, string[]>;
                         
                         // Pegar todos os roles da configuração com suas quantidades
@@ -74,12 +100,13 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
                             : Object.keys(participants).slice(0, 4);
                         
                         return (
-                            <div 
-                                key={mass.id} 
+                            <div
+                                key={mass.id}
+                                ref={(el) => { cardRefs.current[index] = el; }}
                                 onClick={() => handleCardClick(mass)}
-                                className={`w-64 bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 flex-shrink-0 flex flex-col min-h-[280px] transition-all ${
-                                    isLoggedIn || !isLoggedIn 
-                                        ? 'cursor-pointer hover:shadow-md hover:border-[#6d7749]' 
+                                className={`w-[90vw] md:w-64 snap-center bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 flex-shrink-0 flex flex-col min-h-[280px] transition-all ${
+                                    isLoggedIn || !isLoggedIn
+                                        ? 'cursor-pointer hover:shadow-md hover:border-[#6d7749]'
                                         : ''
                                 }`}
                             >
@@ -161,6 +188,31 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
                     })}
                 </div>
             </div>
+
+            {/* Indicadores de posição - Mobile apenas */}
+            {masses.length > 1 && (
+                <div className="flex justify-center gap-2 mt-4 md:hidden">
+                    {masses.map((_, index) => (
+                        <button
+                            key={index}
+                            onClick={() => {
+                                cardRefs.current[index]?.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'nearest',
+                                    inline: 'center'
+                                });
+                            }}
+                            className={`h-2 rounded-full transition-all ${
+                                index === activeIndex
+                                    ? 'w-8 bg-[#6d7749]'
+                                    : 'w-2 bg-gray-300 hover:bg-gray-400'
+                            }`}
+                            aria-label={`Ir para missa ${index + 1} de ${masses.length}`}
+                        />
+                    ))}
+                </div>
+            )}
+
             {selectedMass && config && (
                 <EditParticipantsModal
                     mass={selectedMass}

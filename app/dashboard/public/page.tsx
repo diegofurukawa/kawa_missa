@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { getTenantBySlug, getUpcomingMasses, getLatestConfig } from '@/lib/data';
 import MassCarousel from '@/app/ui/dashboard/mass-carousel';
+import CatholicMessageBanner from '@/app/ui/dashboard/catholic-message-banner';
 import ShareButton from '@/app/ui/share-button';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 
 export async function generateMetadata({
@@ -93,15 +94,9 @@ export default async function PublicDashboardPage({ searchParams }: { searchPara
     const resolvedSearchParams = await searchParams;
     const tenantSlug = resolvedSearchParams.tenant;
 
+    // Se não tem tenant, redireciona para seleção
     if (!tenantSlug) {
-        return (
-            <div className="w-full flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                    <p className="text-gray-500">Por favor, forneça um identificador de organização.</p>
-                    <p className="text-sm text-gray-400 mt-2">Use: /dashboard/public?tenant=ID_DA_ORGANIZACAO</p>
-                </div>
-            </div>
-        );
+        redirect('/select-tenant?redirect=/dashboard/public');
     }
 
     const tenant = await getTenantBySlug(tenantSlug);
@@ -120,14 +115,14 @@ export default async function PublicDashboardPage({ searchParams }: { searchPara
     const publicUrl = `${protocol}://${host}/dashboard/public?tenant=${tenantSlug}`;
 
     return (
-        <div className="w-full space-y-8 p-4 md:p-6 lg:p-12">
+        <div className="w-full space-y-8">
             {/* Minimalist Header */}
-            <div className="text-center">
+            <div className="text-center px-4 pt-4 md:px-0 md:pt-0">
                 <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
                     <h1 className="text-3xl font-bold text-gray-900">
                         {tenant.denomination || tenant.name}
                     </h1>
-                    <ShareButton 
+                    <ShareButton
                         url={publicUrl}
                         title={`${tenant.denomination || tenant.name} - Próximas Missas`}
                         text="Confira as próximas missas"
@@ -142,8 +137,13 @@ export default async function PublicDashboardPage({ searchParams }: { searchPara
 
             {/* Carousel Section */}
             <section>
-                <h2 className="text-xl font-semibold mb-4 text-gray-800 text-center">Próximas Missas</h2>
+                <h2 className="text-xl font-semibold mb-4 text-gray-800 text-center px-4 md:px-0">Próximas Missas</h2>
                 <MassCarousel masses={masses} isLoggedIn={false} config={config} />
+            </section>
+
+            {/* Catholic Message Banner */}
+            <section className="px-4 md:px-0">
+                <CatholicMessageBanner isLoggedIn={false} />
             </section>
         </div>
     );
