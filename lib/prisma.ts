@@ -8,10 +8,9 @@ function getDatabaseUrl(): string {
     const isDockerBuild = process.env.DOCKER_BUILD === 'true';
     
     // Check if DATABASE_URL is valid (no placeholders)
-    const hasValidDatabaseUrl = dbUrl && 
-        dbUrl.trim() !== '' && 
-        !dbUrl.includes('${') && 
-        !dbUrl.includes('host_database') &&
+    const hasValidDatabaseUrl = dbUrl &&
+        dbUrl.trim() !== '' &&
+        !dbUrl.includes('${') &&
         (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'));
     
     if (hasValidDatabaseUrl) {
@@ -19,10 +18,8 @@ function getDatabaseUrl(): string {
     }
     
     // If DATABASE_URL contains placeholders, log warning and fall back to individual variables
-    if (dbUrl && (dbUrl.includes('host_database') || dbUrl.includes('${'))) {
-        if (!isDockerBuild) {
-            console.warn('[Prisma] DATABASE_URL contém placeholders não substituídos. Tentando usar variáveis individuais...');
-        }
+    if (dbUrl && dbUrl.includes('${')) {
+        console.warn('[Prisma] DATABASE_URL contém placeholders não substituídos. Tentando usar variáveis individuais...');
     }
     
     // Build from individual variables
@@ -33,29 +30,18 @@ function getDatabaseUrl(): string {
     const dbName = process.env.DB_NAME || 'kawa_missa';
     const dbSchema = process.env.DB_SCHEMA || 'public';
     
-    // During Docker build, use dummy values to allow build to complete
-    // The real values will be injected at runtime via docker-compose
-    if (isDockerBuild) {
-        const dummyHost = dbHost && dbHost !== 'host_database' && !dbHost.includes('${') 
-            ? dbHost 
-            : 'localhost';
-        const dummyUrl = `postgresql://${dbUser}:${dbPassword}@${dummyHost}:${dbPort}/${dbName}?schema=${dbSchema}`;
-        return dummyUrl;
-    }
-    
     // Validate that we have at least the essential variables and they're not placeholders
-    const hasValidHost = dbHost && 
-        dbHost.trim() !== '' && 
-        dbHost !== 'host_database' && 
+    const hasValidHost = dbHost &&
+        dbHost.trim() !== '' &&
         !dbHost.includes('${');
     
     if (!hasValidHost) {
         console.error('[Prisma] Erro na configuração do banco de dados:');
-        console.error('[Prisma] DATABASE_URL:', dbUrl ? `definido mas inválido (contém placeholders: ${dbUrl.includes('host_database') ? 'host_database' : dbUrl.includes('${') ? '${}' : 'outros'})` : 'não definido');
+        console.error('[Prisma] DATABASE_URL:', dbUrl || 'não definido');
         console.error('[Prisma] DB_HOST:', dbHost || 'não definido');
         console.error('[Prisma] DB_USER:', dbUser || 'não definido');
         console.error('[Prisma] DB_NAME:', dbName || 'não definido');
-        throw new Error('Configuração do banco de dados inválida. As variáveis de ambiente DATABASE_URL ou DB_HOST devem estar configuradas e não devem conter placeholders como "host_database" ou "${}". Verifique suas variáveis de ambiente.');
+        throw new Error('Configuração do banco de dados inválida. DB_HOST deve estar configurado. Verifique suas variáveis de ambiente.');
     }
     
     const url = `postgresql://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}?schema=${dbSchema}`;
