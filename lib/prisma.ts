@@ -83,7 +83,25 @@ function getConnectionString(): string {
 
 function getPool(): Pool {
     if (!pool) {
-        pool = new Pool({ connectionString: getConnectionString() });
+        const connString = getConnectionString();
+        console.log('[Prisma Pool] Criando pool de conexões...');
+        console.log('[Prisma Pool] Connection string (safe):', connString.replace(/:[^:@]+@/, ':****@'));
+
+        pool = new Pool({
+            connectionString: connString,
+            ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+            connectionTimeoutMillis: 10000,
+            idleTimeoutMillis: 30000,
+            max: 20,
+        });
+
+        pool.on('error', (err) => {
+            console.error('[Prisma Pool] Erro inesperado no pool de conexões:', err);
+        });
+
+        pool.on('connect', () => {
+            console.log('[Prisma Pool] Nova conexão estabelecida com sucesso');
+        });
     }
     return pool;
 }
@@ -97,6 +115,11 @@ function getAdapter(): PrismaPg {
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
-export const prisma = globalForPrisma.prisma || new PrismaClient({ adapter: getAdapter() })
+export const prisma = globalForPrisma.prisma || new PrismaClient({
+    adapter: getAdapter(),
+    log: process.env.NODE_ENV === 'production'
+        ? ['error', 'warn']
+        : ['query', 'error', 'warn']
+})
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
