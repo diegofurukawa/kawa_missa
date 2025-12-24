@@ -4,6 +4,7 @@ import { updateMass } from '@/lib/actions';
 import { useActionState } from 'react';
 import { toast } from 'sonner';
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '../button';
 import { TagInput } from '../tag-input';
 import DateInput from '../date-input';
@@ -31,10 +32,11 @@ interface Config {
 }
 
 export default function EditMassForm({ mass, tenant, configs }: { mass: Mass; tenant: any; configs: Config[] }) {
+    const router = useRouter();
     const updateMassWithId = async (prevState: any, formData: FormData) => {
         return await updateMass(mass.id, prevState, formData);
     };
-    
+
     const [state, dispatch, isPending] = useActionState(updateMassWithId, undefined);
 
     // State for selected config (initialize with mass.configId if exists)
@@ -151,9 +153,14 @@ export default function EditMassForm({ mass, tenant, configs }: { mass: Mass; te
 
     useEffect(() => {
         if (state?.message) {
-            toast.error(state.message);
+            if (state.success) {
+                toast.success(state.message);
+                setTimeout(() => router.push('/dashboard/masses'), 1500);
+            } else {
+                toast.error(state.message);
+            }
         }
-    }, [state?.message]);
+    }, [state?.message, state?.success, router]);
 
     const handleConfigChange = (configId: string) => {
         setSelectedConfigId(configId);

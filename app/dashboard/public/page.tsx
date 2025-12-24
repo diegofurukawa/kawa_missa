@@ -1,8 +1,93 @@
+import type { Metadata } from "next";
 import { getTenantBySlug, getUpcomingMasses, getLatestConfig } from '@/lib/data';
 import MassCarousel from '@/app/ui/dashboard/mass-carousel';
 import ShareButton from '@/app/ui/share-button';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ tenant?: string }>;
+}): Promise<Metadata> {
+  const resolvedSearchParams = await searchParams;
+  const tenantSlug = resolvedSearchParams.tenant;
+
+  if (!tenantSlug) {
+    return {
+      title: "Consulta de Missas",
+      description: "Plataforma para consulta de horários de missas",
+    };
+  }
+
+  try {
+    const tenant = await getTenantBySlug(tenantSlug);
+
+    if (!tenant) {
+      return {
+        title: "Paróquia não encontrada",
+        description: "A paróquia solicitada não foi encontrada",
+        robots: {
+          index: false,
+          follow: false,
+        },
+      };
+    }
+
+    const title = `${tenant.denomination || tenant.name} - Próximas Missas`;
+    const description = tenant.responsibleName
+      ? `Consulte os horários das próximas missas - ${tenant.responsibleName}`
+      : `Consulte os horários das próximas missas de ${tenant.denomination || tenant.name}`;
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        type: "website",
+        locale: "pt_BR",
+        url: `/dashboard/public?tenant=${tenantSlug}`,
+        siteName: "Kawa Missa",
+        images: [
+          {
+            url: "/og-image-public.png",
+            width: 1200,
+            height: 630,
+            alt: tenant.denomination || tenant.name,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: ["/og-image-public.png"],
+      },
+      alternates: {
+        canonical: `/dashboard/public?tenant=${tenantSlug}`,
+      },
+      robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+        },
+      },
+    };
+  } catch (error) {
+    console.error("Error generating metadata:", error);
+    return {
+      title: "Erro ao carregar paróquia",
+      description: "Plataforma para consulta de horários de missas",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+}
 
 export default async function PublicDashboardPage({ searchParams }: { searchParams: Promise<{ tenant?: string }> }) {
     const resolvedSearchParams = await searchParams;

@@ -1,4 +1,14 @@
+import type { Metadata } from "next";
 import LoginForm from '@/app/ui/login/login-form';
+
+export const metadata: Metadata = {
+  title: "Login",
+  description: "Acesse sua conta no Kawa Missa",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default function LoginPage() {
     return (

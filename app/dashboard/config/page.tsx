@@ -1,11 +1,21 @@
+import type { Metadata } from "next";
 import { getUserTenant, getConfigs } from '@/lib/data';
 import Link from 'next/link';
 import { Button } from '@/app/ui/button';
-import { deleteConfig } from '@/lib/actions';
 import { format } from 'date-fns';
 import Pagination from '@/app/ui/pagination';
 import { prisma } from '@/lib/prisma';
 import { Suspense } from 'react';
+import { DeleteConfigButton } from '@/app/ui/config/delete-button';
+
+export const metadata: Metadata = {
+  title: "Configurações",
+  description: "Configure cronogramas e participantes das missas",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 type Config = Awaited<ReturnType<typeof getConfigs>>[0];
 
@@ -115,14 +125,7 @@ export default async function ConfigPage({ searchParams }: ConfigPageProps) {
                                             >
                                                 Editar
                                             </Link>
-                                            <form action={async () => {
-                                                'use server';
-                                                await deleteConfig(config.id);
-                                            }}>
-                                                <button className="text-red-600 hover:text-red-700 font-medium text-sm transition-colors">
-                                                    Excluir
-                                                </button>
-                                            </form>
+                                            <DeleteConfigButton configId={config.id} />
                                         </div>
                                     </td>
                                 </tr>

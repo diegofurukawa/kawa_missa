@@ -1,9 +1,10 @@
 'use client';
 
-import { createMass } from '@/lib/actions';
+import { createMass, createMasses } from '@/lib/actions';
 import { useActionState } from 'react';
 import { toast } from 'sonner';
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '../button';
 import { TagInput } from '../tag-input';
 import DateInput from '../date-input';
@@ -21,7 +22,9 @@ interface Config {
 }
 
 export default function CreateMassForm({ tenant, configs }: { tenant: any; configs: Config[] }) {
+    const router = useRouter();
     const [state, dispatch, isPending] = useActionState(createMass, undefined);
+    const [stateMulti, dispatchMulti, isPendingMulti] = useActionState(createMasses, undefined);
 
     // State for selected config
     const [selectedConfigId, setSelectedConfigId] = useState<string>('');
@@ -57,6 +60,9 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
     // State for date and time
     const [date, setDate] = useState<string>('');
     const [time, setTime] = useState<string>('');
+
+    // State for multiple date selection
+    const [selectedDates, setSelectedDates] = useState<Date[]>([]);
 
     // State for type and description
     const [type, setType] = useState<string>('Missa');
@@ -133,11 +139,29 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
         }
     }, [date, time, cronExpression, suggestedDates]);
 
+    // Toast for single mass creation
     useEffect(() => {
         if (state?.message) {
-            toast.error(state.message);
+            if (state.success) {
+                toast.success(state.message);
+                setTimeout(() => router.push('/dashboard/masses'), 1500);
+            } else {
+                toast.error(state.message);
+            }
         }
-    }, [state?.message]);
+    }, [state?.message, state?.success, router]);
+
+    // Toast for multiple mass creation
+    useEffect(() => {
+        if (stateMulti?.message) {
+            if (stateMulti.success) {
+                toast.success(stateMulti.message);
+                setTimeout(() => router.push('/dashboard/masses'), 1500);
+            } else {
+                toast.error(stateMulti.message);
+            }
+        }
+    }, [stateMulti?.message, stateMulti?.success, router]);
 
     const handleConfigChange = (configId: string) => {
         setSelectedConfigId(configId);
@@ -148,23 +172,36 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
     };
 
     const handleSuggestedDateClick = (suggestedDate: Date) => {
-        const year = suggestedDate.getFullYear();
-        const month = String(suggestedDate.getMonth() + 1).padStart(2, '0');
-        const day = String(suggestedDate.getDate()).padStart(2, '0');
-        const hours = String(suggestedDate.getHours()).padStart(2, '0');
-        const minutes = String(suggestedDate.getMinutes()).padStart(2, '0');
-        
-        setDate(`${year}-${month}-${day}`);
-        setTime(`${hours}:${minutes}`);
+        const isSelected = selectedDates.some(d => d.getTime() === suggestedDate.getTime());
+
+        if (isSelected) {
+            // Remove from selection
+            setSelectedDates(selectedDates.filter(d => d.getTime() !== suggestedDate.getTime()));
+        } else {
+            // Add to selection
+            setSelectedDates([...selectedDates, suggestedDate]);
+        }
+
+        // Clear manual inputs
+        setDate('');
+        setTime('');
+    };
+
+    const handleManualDateChange = (newDate: string) => {
+        setDate(newDate);
+        if (selectedDates.length > 0) {
+            setSelectedDates([]);
+        }
+    };
+
+    const handleManualTimeChange = (newTime: string) => {
+        setTime(newTime);
+        if (selectedDates.length > 0) {
+            setSelectedDates([]);
+        }
     };
 
     const handleSubmit = async (formData: FormData) => {
-        // Combine date and time into ISO datetime string (local, no timezone)
-        if (date && time) {
-            const dateTimeString = combineLocalDateTime(date, time);
-            formData.set('date', dateTimeString);
-        }
-
         // Add type and description
         formData.set('type', type);
         formData.set('description', description);
@@ -182,8 +219,31 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                 }
             });
         });
-        
-        dispatch(formData);
+
+        // Handle MULTI-DATE or SINGLE-DATE submission
+        if (selectedDates.length > 0) {
+            // Multiple dates
+            selectedDates.forEach((selectedDate) => {
+                const year = selectedDate.getFullYear();
+                const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                const day = String(selectedDate.getDate()).padStart(2, '0');
+                const hours = String(selectedDate.getHours()).padStart(2, '0');
+                const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+
+                const dateTimeString = combineLocalDateTime(
+                    `${year}-${month}-${day}`,
+                    `${hours}:${minutes}`
+                );
+                formData.append('dates', dateTimeString);
+            });
+
+            dispatchMulti(formData);
+        } else if (date && time) {
+            // Single date
+            const dateTimeString = combineLocalDateTime(date, time);
+            formData.set('date', dateTimeString);
+            dispatch(formData);
+        }
     };
 
     return (
@@ -233,12 +293,12 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             Data
                         </label>
-                        <DateInput 
-                            name="date" 
+                        <DateInput
+                            name="date"
                             value={date}
-                            onChange={setDate}
-                            required 
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#6d7749] focus:border-transparent transition-colors" 
+                            onChange={handleManualDateChange}
+                            required={selectedDates.length === 0}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#6d7749] focus:border-transparent transition-colors"
                             placeholder="dd/MM/yyyy"
                         />
                     </div>
@@ -247,12 +307,12 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             Hora
                         </label>
-                        <TimeInput 
-                            name="time" 
+                        <TimeInput
+                            name="time"
                             value={time}
-                            onChange={setTime}
-                            required 
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#6d7749] focus:border-transparent transition-colors" 
+                            onChange={handleManualTimeChange}
+                            required={selectedDates.length === 0}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#6d7749] focus:border-transparent transition-colors"
                             placeholder="HH:mm"
                         />
                     </div>
@@ -298,8 +358,14 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Datas Sugeridas (baseadas no agendamento)
                         </label>
+                        {selectedDates.length > 0 && (
+                            <div className="mb-2 text-sm font-medium text-[#6d7749]">
+                                {selectedDates.length} {selectedDates.length === 1 ? 'data selecionada' : 'datas selecionadas'}
+                            </div>
+                        )}
                         <div className="flex flex-wrap gap-2">
                             {suggestedDates.slice(0, 5).map((suggestedDate, index) => {
+                                const isSelected = selectedDates.some(d => d.getTime() === suggestedDate.getTime());
                                 const dateStr = suggestedDate.toLocaleDateString('pt-BR', {
                                     weekday: 'short',
                                     day: '2-digit',
@@ -311,13 +377,17 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                                     minute: '2-digit',
                                     hour12: false
                                 });
-                                
+
                                 return (
                                     <button
                                         key={index}
                                         type="button"
                                         onClick={() => handleSuggestedDateClick(suggestedDate)}
-                                        className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border border-gray-300 transition-colors"
+                                        className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                                            isSelected
+                                                ? 'bg-[#6d7749] text-white border-[#6d7749] hover:bg-[#5a6239]'
+                                                : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                                        }`}
                                     >
                                         {dateStr} às {timeStr}
                                     </button>
@@ -357,13 +427,13 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
             </div>
 
             <div className="flex gap-3 pt-4">
-                <Button 
-                    type="submit" 
-                    variant="form-primary" 
-                    className="w-full" 
-                    disabled={isPending}
+                <Button
+                    type="submit"
+                    variant="form-primary"
+                    className="w-full"
+                    disabled={isPending || isPendingMulti}
                 >
-                    {isPending ? 'Agendando...' : 'Agendar Missa'}
+                    {(isPending || isPendingMulti) ? 'Agendando...' : 'Agendar Missa'}
                 </Button>
             </div>
         </form>

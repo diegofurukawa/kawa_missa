@@ -1,5 +1,15 @@
+import type { Metadata } from "next";
 import { getUserTenant } from '@/lib/data';
 import OrganizationForm from '@/app/ui/organization/form';
+
+export const metadata: Metadata = {
+  title: "Organização",
+  description: "Gerencie os dados da sua paróquia",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function OrganizationPage() {
     const tenant = await getUserTenant();

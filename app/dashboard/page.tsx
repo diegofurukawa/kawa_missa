@@ -1,9 +1,19 @@
+import type { Metadata } from "next";
 import { getUpcomingMasses, getUserTenant, getLatestConfig } from '@/lib/data';
 import MassCarousel from '@/app/ui/dashboard/mass-carousel';
 import CatholicMessageBanner from '@/app/ui/dashboard/catholic-message-banner';
 import ShareButton from '@/app/ui/share-button';
 import { generateShareUrl } from '@/app/ui/share-url-generator';
 import { auth } from '@/auth';
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "Painel de controle - Gerencie missas e visualize próximos eventos",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function Dashboard() {
     const session = await auth();

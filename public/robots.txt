@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Allow: /dashboard/public
+
+Disallow: /dashboard/masses
+Disallow: /dashboard/config
+Disallow: /dashboard/organization
+Disallow: /login
+Disallow: /onboarding
+Disallow: /api/
+
+Sitemap: https://localhost:3000/sitemap.xml

@@ -1,4 +1,14 @@
+import type { Metadata } from "next";
 import OnboardingForm from '@/app/ui/onboarding-form';
+
+export const metadata: Metadata = {
+  title: "Criar Conta",
+  description: "Crie sua conta e comece a gerenciar sua paróquia",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default function OnboardingPage() {
     return (

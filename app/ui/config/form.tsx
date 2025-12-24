@@ -5,6 +5,7 @@ import { useActionState } from 'react';
 import { Button } from '../button';
 import { toast } from 'sonner';
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import CronBuilder from './cron-builder';
 
@@ -21,8 +22,9 @@ interface ConfigFormProps {
 }
 
 export default function ConfigForm({ config }: ConfigFormProps) {
+    const router = useRouter();
     const isEditMode = !!config;
-    
+
     const updateConfigWithId = async (prevState: unknown, formData: FormData) => {
         if (!config) return { message: 'Config não encontrada' };
         return await updateConfig(config.id, prevState, formData);
@@ -62,15 +64,14 @@ export default function ConfigForm({ config }: ConfigFormProps) {
 
     useEffect(() => {
         if (state?.message) {
-            // If there are errors, it's an error state, otherwise it's just a message (likely an error too)
-            if (state.errors) {
-                toast.error(state.message);
+            if (state.success) {
+                toast.success(state.message);
+                setTimeout(() => router.push('/dashboard/config'), 1500);
             } else {
-                // This shouldn't normally happen as successful creates redirect
                 toast.error(state.message);
             }
         }
-    }, [state]);
+    }, [state?.message, state?.success, router]);
 
     // Focus no novo input quando um role é adicionado
     useEffect(() => {

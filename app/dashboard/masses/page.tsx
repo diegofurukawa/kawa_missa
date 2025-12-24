@@ -1,11 +1,21 @@
+import type { Metadata } from "next";
 import { getUserTenant } from '@/lib/data';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { deleteMass } from '@/lib/actions';
 import { Button } from '@/app/ui/button';
 import Pagination from '@/app/ui/pagination';
 import { Suspense } from 'react';
+import { DeleteMassButton } from '@/app/ui/masses/delete-button';
+
+export const metadata: Metadata = {
+  title: "Gerenciar Missas",
+  description: "Gerencie todas as missas agendadas da sua paróquia",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 interface MassesPageProps {
     searchParams: Promise<{ page?: string }>;
@@ -122,14 +132,7 @@ export default async function MassesPage({ searchParams }: MassesPageProps) {
                                             >
                                                 Editar
                                             </Link>
-                                            <form action={async () => {
-                                                'use server';
-                                                await deleteMass(mass.id);
-                                            }}>
-                                                <button className="text-red-600 hover:text-red-700 font-medium text-sm transition-colors">
-                                                    Excluir
-                                                </button>
-                                            </form>
+                                            <DeleteMassButton massId={mass.id} />
                                         </div>
                                     </td>
                                 </tr>

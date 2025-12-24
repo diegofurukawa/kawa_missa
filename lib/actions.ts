@@ -273,6 +273,14 @@ const MassSchema = z.object({
     configId: z.string().optional().nullable(),
 });
 
+const MassesSchema = z.object({
+    tenantId: z.string(),
+    dates: z.array(z.string()), // Array of ISO datetime strings
+    type: z.enum(['Missa', 'Encontro']).default('Missa'),
+    description: z.string().min(1, 'Descrição é obrigatória'),
+    configId: z.string().optional().nullable(),
+});
+
 export async function createMass(prevState: unknown, formData: FormData) {
     const session = await auth();
     if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
@@ -359,15 +367,145 @@ export async function createMass(prevState: unknown, formData: FormData) {
     }
 
     revalidatePath('/dashboard/masses');
-    redirect('/dashboard/masses');
+    return { message: 'Missa criada com sucesso!', success: true };
+}
+
+export async function createMasses(prevState: unknown, formData: FormData) {
+    const session = await auth();
+    if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
+
+    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!user) return { message: 'Usuário não encontrado. Por favor, faça login novamente.' };
+
+    const configIdValue = formData.get('configId');
+    const configId = configIdValue && configIdValue.toString().trim() !== ''
+        ? configIdValue.toString().trim()
+        : null;
+
+    if (configId) {
+        const config = await prisma.config.findUnique({
+            where: { id: configId },
+            select: { tenantId: true }
+        });
+
+        if (!config || config.tenantId !== user.tenantId) {
+            return { message: 'Configuração não encontrada ou não autorizada.' };
+        }
+    }
+
+    const dates: string[] = [];
+    formData.getAll('dates').forEach((value) => {
+        dates.push(value.toString());
+    });
+
+    const typeValue = formData.get('type')?.toString() || 'Missa';
+    const descriptionValue = formData.get('description')?.toString() || '';
+
+    const validatedFields = MassesSchema.safeParse({
+        tenantId: user.tenantId,
+        dates: dates,
+        type: typeValue,
+        description: descriptionValue,
+        configId: configId,
+    });
+
+    if (!validatedFields.success) {
+        return { message: 'Dados inválidos. Por favor, verifique as informações preenchidas.' };
+    }
+
+    const { tenantId, dates: validatedDates, type, description } = validatedFields.data;
+
+    const participants: Record<string, string[]> = {};
+    formData.forEach((value, key) => {
+        if (key.startsWith('role_')) {
+            const roleName = key.replace('role_', '');
+            const participantName = value.toString().trim();
+
+            if (participantName !== '') {
+                if (!participants[roleName]) {
+                    participants[roleName] = [];
+                }
+                participants[roleName].push(participantName);
+            }
+        }
+    });
+
+    const results = {
+        created: 0,
+        duplicates: 0,
+        failed: 0,
+    };
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            for (const dateString of validatedDates) {
+                const dateObj = fromLocalDateTime(dateString);
+                const slug = format(dateObj, "yyyyMMdd_HHmm");
+
+                try {
+                    const existing = await tx.mass.findUnique({
+                        where: {
+                            tenantId_slug: {
+                                tenantId: tenantId,
+                                slug: slug
+                            }
+                        }
+                    });
+
+                    if (existing) {
+                        results.duplicates++;
+                        continue;
+                    }
+
+                    await tx.mass.create({
+                        data: {
+                            tenantId,
+                            configId: configId || null,
+                            date: dateObj,
+                            slug,
+                            type,
+                            description,
+                            participants: participants,
+                        }
+                    });
+                    results.created++;
+                } catch (err) {
+                    results.failed++;
+                }
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        return { message: 'Erro ao criar missas. Por favor, tente novamente.' };
+    }
+
+    let message = '';
+    if (results.created > 0) {
+        message = `${results.created} ${results.created === 1 ? 'missa criada' : 'missas criadas'} com sucesso!`;
+    }
+    if (results.duplicates > 0) {
+        message += ` ${results.duplicates} ${results.duplicates === 1 ? 'data já existia' : 'datas já existiam'}.`;
+    }
+    if (results.failed > 0) {
+        message += ` ${results.failed} ${results.failed === 1 ? 'falhou' : 'falharam'}.`;
+    }
+
+    revalidatePath('/dashboard/masses');
+
+    if (results.created > 0) {
+        return { message: message || 'Missas criadas!', success: true };
+    } else {
+        return { message: message || 'Nenhuma missa foi criada.' };
+    }
 }
 
 export async function deleteMass(id: string) {
     try {
         await prisma.mass.delete({ where: { id } });
         revalidatePath('/dashboard/masses');
+        return { success: true };
     } catch {
-        return { message: 'Failed to delete' };
+        return { message: 'Erro ao excluir missa. Por favor, tente novamente.' };
     }
 }
 
@@ -467,7 +605,7 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
 
     revalidatePath('/dashboard/masses');
     revalidatePath('/dashboard');
-    redirect('/dashboard/masses');
+    return { message: 'Missa atualizada com sucesso!', success: true };
 }
 
 export async function updateMassParticipants(id: string, prevState: unknown, formData: FormData) {
@@ -629,7 +767,7 @@ export async function createConfig(prevState: unknown, formData: FormData) {
     }
 
     revalidatePath('/dashboard/config');
-    redirect('/dashboard/config');
+    return { message: 'Configuração criada com sucesso!', success: true };
 }
 
 export async function updateConfig(id: string, prevState: unknown, formData: FormData) {
@@ -731,7 +869,7 @@ export async function updateConfig(id: string, prevState: unknown, formData: For
     }
 
     revalidatePath('/dashboard/config');
-    redirect('/dashboard/config');
+    return { message: 'Configuração atualizada com sucesso!', success: true };
 }
 
 export async function deleteConfig(id: string) {
