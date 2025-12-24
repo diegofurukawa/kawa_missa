@@ -1,4 +1,0 @@
--- AlterTable
-ALTER TABLE "Mass" ADD COLUMN "type" TEXT NOT NULL DEFAULT 'Missa';
-ALTER TABLE "Mass" ADD COLUMN "description" TEXT NOT NULL DEFAULT '';
-

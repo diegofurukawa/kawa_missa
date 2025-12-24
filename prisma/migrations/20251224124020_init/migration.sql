@@ -59,8 +59,11 @@ CREATE TABLE "Config" (
 CREATE TABLE "Mass" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
+    "configId" TEXT,
     "slug" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'Missa',
+    "description" TEXT NOT NULL,
     "participants" JSONB NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -88,3 +91,6 @@ ALTER TABLE "Config" ADD CONSTRAINT "Config_tenantId_fkey" FOREIGN KEY ("tenantI
 
 -- AddForeignKey
 ALTER TABLE "Mass" ADD CONSTRAINT "Mass_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Mass" ADD CONSTRAINT "Mass_configId_fkey" FOREIGN KEY ("configId") REFERENCES "Config"("id") ON DELETE SET NULL ON UPDATE CASCADE;
