@@ -28,18 +28,18 @@ export function TagInput({
 
     const handleAddTag = () => {
         const trimmedValue = inputValue.trim();
-        
+
         if (!trimmedValue) return;
-        
+
         if (maxTags && tags.length >= maxTags) {
             return;
         }
-        
+
         if (!allowDuplicates && tags.includes(trimmedValue)) {
             setInputValue('');
             return;
         }
-        
+
         onTagsChange([...tags, trimmedValue]);
         setInputValue('');
     };
@@ -64,7 +64,7 @@ export function TagInput({
                     {label}
                 </label>
             )}
-            
+
             <div className="flex flex-wrap gap-2 p-2.5 min-h-[42px] border border-gray-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-[#6d7749] focus-within:border-[#6d7749] transition-colors">
                 {tags.map((tag, index) => (
                     <Tag
@@ -75,7 +75,7 @@ export function TagInput({
                         {tag}
                     </Tag>
                 ))}
-                
+
                 <div className="flex items-center gap-1 flex-1 min-w-[120px]">
                     <input
                         type="text"
@@ -90,14 +90,22 @@ export function TagInput({
                         type="button"
                         onClick={handleAddTag}
                         disabled={!inputValue.trim() || (maxTags ? tags.length >= maxTags : false)}
-                        className="p-1 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-gray-500 hover:text-gray-700"
-                        aria-label="Adicionar tag"
+                        className={clsx(
+                            'p-1.5 rounded-full transition-all duration-200',
+                            'disabled:opacity-30 disabled:cursor-not-allowed',
+                            'enabled:bg-[#6d7749] enabled:text-white enabled:hover:bg-[#5d6541]',
+                            'enabled:shadow-md enabled:hover:shadow-lg',
+                            'enabled:animate-pulse enabled:hover:animate-none',
+                            'font-bold'
+                        )}
+                        aria-label="Adicionar participante"
+                        title="Clique para adicionar"
                     >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-5 w-5 stroke-[3]" />
                     </button>
                 </div>
             </div>
-            
+
             {maxTags && (
                 <p className="text-xs text-gray-500">
                     {tags.length} / {maxTags} tags

@@ -3,6 +3,10 @@ import { authConfig } from './auth.config';
 
 export default NextAuth(authConfig).auth;
 
+// Force Node.js runtime because we use Prisma in auth.config.ts
+// Edge runtime doesn't support Node.js modules like 'crypto'
+export const runtime = 'nodejs';
+
 export const config = {
     // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
     matcher: [

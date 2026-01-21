@@ -7,24 +7,24 @@ import { generateShareUrl } from '@/app/ui/share-url-generator';
 import { auth } from '@/auth';
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Painel de controle - Gerencie missas e visualize próximos eventos",
-  robots: {
-    index: false,
-    follow: false,
-  },
+    title: "Dashboard",
+    description: "Painel de controle - Gerencie missas e visualize próximos eventos",
+    robots: {
+        index: false,
+        follow: false,
+    },
 };
 
 export default async function Dashboard() {
     const session = await auth();
     const isLoggedIn = !!session?.user;
-    
+
     const tenant = await getUserTenant();
     const masses = tenant ? await getUpcomingMasses(tenant.id) : [];
     const config = tenant ? await getLatestConfig(tenant.id) : null;
 
     // Build the public dashboard URL for sharing
-    const publicDashboardUrl = tenant 
+    const publicDashboardUrl = tenant
         ? await generateShareUrl({ type: 'dashboard', tenantId: tenant.id })
         : null;
 
@@ -67,7 +67,7 @@ export default async function Dashboard() {
 
             {/* Catholic Message Banner */}
             <section>
-                <CatholicMessageBanner isLoggedIn={isLoggedIn} />
+                <CatholicMessageBanner />
             </section>
         </div>
     );

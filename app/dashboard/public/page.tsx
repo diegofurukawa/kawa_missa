@@ -3,7 +3,7 @@ import { getTenantBySlug, getUpcomingMasses, getLatestConfig } from '@/lib/data'
 import MassCarousel from '@/app/ui/dashboard/mass-carousel';
 import CatholicMessageBanner from '@/app/ui/dashboard/catholic-message-banner';
 import ShareButton from '@/app/ui/share-button';
-import { notFound, redirect } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 
 export async function generateMetadata({
@@ -91,61 +91,62 @@ export async function generateMetadata({
 }
 
 export default async function PublicDashboardPage({ searchParams }: { searchParams: Promise<{ tenant?: string }> }) {
-    const resolvedSearchParams = await searchParams;
-    const tenantSlug = resolvedSearchParams.tenant;
+  const resolvedSearchParams = await searchParams;
+  const tenantSlug = resolvedSearchParams.tenant;
 
-    // Se não tem tenant, redireciona para seleção
-    if (!tenantSlug) {
-        redirect('/select-tenant?redirect=/dashboard/public');
-    }
+  // Se não tem tenant, redireciona para seleção
+  if (!tenantSlug) {
+    redirect('/select-tenant?redirect=/dashboard/public');
+  }
 
-    const tenant = await getTenantBySlug(tenantSlug);
+  const tenant = await getTenantBySlug(tenantSlug);
 
-    if (!tenant) {
-        notFound();
-    }
+  // Se o tenant não existe, redireciona para seleção de paróquia
+  if (!tenant) {
+    redirect('/select-tenant?redirect=/dashboard/public');
+  }
 
-    const masses = await getUpcomingMasses(tenant.id);
-    const config = await getLatestConfig(tenant.id);
+  const masses = await getUpcomingMasses(tenant.id);
+  const config = await getLatestConfig(tenant.id);
 
-    // Build the public URL using headers
-    const headersList = await headers();
-    const host = headersList.get('host') || 'localhost:3000';
-    const protocol = headersList.get('x-forwarded-proto') || 'http';
-    const publicUrl = `${protocol}://${host}/dashboard/public?tenant=${tenantSlug}`;
+  // Build the public URL using headers
+  const headersList = await headers();
+  const host = headersList.get('host') || 'localhost:3000';
+  const protocol = headersList.get('x-forwarded-proto') || 'http';
+  const publicUrl = `${protocol}://${host}/dashboard/public?tenant=${tenantSlug}`;
 
-    return (
-        <div className="w-full space-y-8">
-            {/* Minimalist Header */}
-            <div className="text-center px-4 pt-4 md:px-0 md:pt-0">
-                <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
-                    <h1 className="text-3xl font-bold text-gray-900">
-                        {tenant.denomination || tenant.name}
-                    </h1>
-                    <ShareButton
-                        url={publicUrl}
-                        title={`${tenant.denomination || tenant.name} - Próximas Missas`}
-                        text="Confira as próximas missas"
-                    />
-                </div>
-                {tenant.responsibleName && (
-                    <p className="text-gray-600 mt-1.5">
-                        {tenant.responsibleName}
-                    </p>
-                )}
-            </div>
-
-            {/* Carousel Section */}
-            <section>
-                <h2 className="text-xl font-semibold mb-4 text-gray-800 text-center px-4 md:px-0">Próximas Missas</h2>
-                <MassCarousel masses={masses} isLoggedIn={false} config={config} />
-            </section>
-
-            {/* Catholic Message Banner */}
-            <section className="px-4 md:px-0">
-                <CatholicMessageBanner isLoggedIn={false} />
-            </section>
+  return (
+    <div className="w-full space-y-8">
+      {/* Minimalist Header */}
+      <div className="text-center px-4 pt-4 md:px-0 md:pt-0">
+        <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
+          <h1 className="text-3xl font-bold text-gray-900">
+            {tenant.denomination || tenant.name}
+          </h1>
+          <ShareButton
+            url={publicUrl}
+            title={`${tenant.denomination || tenant.name} - Próximas Missas`}
+            text="Confira as próximas missas"
+          />
         </div>
-    );
+        {tenant.responsibleName && (
+          <p className="text-gray-600 mt-1.5">
+            {tenant.responsibleName}
+          </p>
+        )}
+      </div>
+
+      {/* Carousel Section */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4 text-gray-800 text-center px-4 md:px-0">Próximas Missas</h2>
+        <MassCarousel masses={masses} isLoggedIn={false} config={config} />
+      </section>
+
+      {/* Catholic Message Banner */}
+      <section className="px-4 md:px-0">
+        <CatholicMessageBanner />
+      </section>
+    </div>
+  );
 }
 

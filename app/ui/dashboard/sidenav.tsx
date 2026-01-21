@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { Home, Calendar, Settings, LogOut, Cog, X } from 'lucide-react';
 import { signOut } from 'next-auth/react';
@@ -22,6 +22,7 @@ interface SideNavProps {
 
 export default function SideNav({ isOpen, onClose }: SideNavProps) {
     const pathname = usePathname();
+    const router = useRouter();
     const sidebarRef = useRef<HTMLDivElement>(null);
 
     // Close sidebar on route change (mobile only)
@@ -60,6 +61,25 @@ export default function SideNav({ isOpen, onClose }: SideNavProps) {
             document.body.style.overflow = '';
         };
     }, [isOpen, onClose]);
+
+    const handleSignOut = async () => {
+        try {
+            // Close sidebar on mobile
+            if (window.innerWidth < 768) {
+                onClose();
+            }
+
+            // Sign out and redirect to select-tenant
+            await signOut({
+                redirect: true,
+                callbackUrl: '/select-tenant?redirect=/dashboard/public'
+            });
+        } catch (error) {
+            console.error('Error signing out:', error);
+            // Fallback: force redirect
+            router.push('/select-tenant?redirect=/dashboard/public');
+        }
+    };
 
     return (
         <>
@@ -133,7 +153,7 @@ export default function SideNav({ isOpen, onClose }: SideNavProps) {
                                     }
                                 }}
                                 className={clsx(
-                                    'flex h-[48px] items-center gap-2 rounded-lg p-3 text-sm font-medium transition-colors md:justify-start md:p-2 md:px-3 flex-shrink-0',
+                                    'flex h-[48px] items-center gap-3 rounded-lg p-3 text-sm font-medium transition-colors flex-shrink-0',
                                     {
                                         'bg-[#6d7749]/10 text-[#6d7749]': isActive,
                                         'bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900': !isActive,
@@ -141,36 +161,22 @@ export default function SideNav({ isOpen, onClose }: SideNavProps) {
                                 )}
                             >
                                 <LinkIcon className="w-6 flex-shrink-0" />
-                                <p className="hidden md:block">{link.name}</p>
+                                <p className="truncate">{link.name}</p>
                             </Link>
                         );
                     })}
-                    
+
                     {/* Spacer to push logout to bottom */}
                     <div className="flex-1 min-h-[20px]"></div>
-                    
+
                     {/* Logout button - fixed at bottom */}
                     <button
-                        className="flex h-[48px] items-center gap-2 rounded-lg bg-white p-3 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors md:justify-start md:p-2 md:px-3 flex-shrink-0 mt-auto"
-                        onClick={() => {
-                            // Immediately redirect to prevent NextAuth from using NEXTAUTH_URL
-                            // We'll handle the sign out on the login page or via API call
-                            const loginUrl = window.location.origin + '/login';
-                            
-                            // Make signout API call in background (fire and forget)
-                            fetch('/api/auth/signout', { 
-                                method: 'POST',
-                                credentials: 'include'
-                            }).catch(() => {
-                                // Ignore errors - we're redirecting anyway
-                            });
-                            
-                            // Immediately redirect to login page
-                            window.location.href = loginUrl;
-                        }}
+                        className="flex h-[48px] items-center gap-3 rounded-lg bg-white p-3 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors flex-shrink-0 mt-auto"
+                        onClick={handleSignOut}
+                        aria-label="Sair da conta"
                     >
                         <LogOut className="w-6 flex-shrink-0" />
-                        <div className="hidden md:block">Sign Out</div>
+                        <div className="truncate">Sair</div>
                     </button>
                 </div>
             </div>

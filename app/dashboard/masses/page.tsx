@@ -2,19 +2,19 @@ import type { Metadata } from "next";
 import { getUserTenant } from '@/lib/data';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { format } from 'date-fns';
+import { formatLocalDateTime, formatDateToBR } from '@/lib/date-utils';
 import { Button } from '@/app/ui/button';
 import Pagination from '@/app/ui/pagination';
 import { Suspense } from 'react';
 import { DeleteMassButton } from '@/app/ui/masses/delete-button';
 
 export const metadata: Metadata = {
-  title: "Gerenciar Missas",
-  description: "Gerencie todas as missas agendadas da sua paróquia",
-  robots: {
-    index: false,
-    follow: false,
-  },
+    title: "Gerenciar Missas",
+    description: "Gerencie todas as missas agendadas da sua paróquia",
+    robots: {
+        index: false,
+        follow: false,
+    },
 };
 
 interface MassesPageProps {
@@ -111,11 +111,14 @@ export default async function MassesPage({ searchParams }: MassesPageProps) {
                         {masses.map((mass) => {
                             const participantCount = countParticipants(mass.participants);
                             const configDisplay = getConfigDisplay(mass.config);
-                            
+                            // Use formatLocalDateTime to preserve local time
+                            const { date, time } = formatLocalDateTime(mass.date);
+                            const formattedDate = formatDateToBR(date);
+
                             return (
                                 <tr key={mass.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                     <td className="whitespace-nowrap px-6 py-4 font-medium text-gray-900">
-                                        {format(mass.date, 'dd/MM/yyyy HH:mm')}
+                                        {formattedDate} {time}
                                     </td>
                                     <td className="whitespace-nowrap px-6 py-4 text-gray-600 font-mono text-xs">{mass.slug}</td>
                                     <td className="whitespace-nowrap px-6 py-4 text-gray-700">
@@ -126,7 +129,7 @@ export default async function MassesPage({ searchParams }: MassesPageProps) {
                                     </td>
                                     <td className="whitespace-nowrap px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <Link 
+                                            <Link
                                                 href={`/dashboard/masses/${mass.id}/edit`}
                                                 className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
                                             >
@@ -152,9 +155,9 @@ export default async function MassesPage({ searchParams }: MassesPageProps) {
             {totalPages > 1 && (
                 <div className="mt-6">
                     <Suspense fallback={<div className="text-center text-gray-500">Carregando...</div>}>
-                        <Pagination 
-                            currentPage={currentPage} 
-                            totalPages={totalPages} 
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
                             basePath="/dashboard/masses"
                         />
                     </Suspense>

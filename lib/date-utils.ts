@@ -15,35 +15,35 @@ export function toLocalDateTime(date: Date): string {
     const day = String(date.getDate()).padStart(2, '0');
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    
+
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 /**
  * Converte uma string local (YYYY-MM-DDTHH:mm) para Date
  * Trata a string como hora local, sem conversão de timezone
+ * IMPORTANTE: Cria um Date que quando salvo no PostgreSQL mantém a hora local
  * @param str String no formato YYYY-MM-DDTHH:mm (sem timezone)
- * @returns Objeto Date
+ * @returns Objeto Date em hora local
  */
 export function fromLocalDateTime(str: string): Date {
     // Remove qualquer timezone que possa estar presente
     const cleanStr = str.replace(/[+-]\d{2}:\d{2}$/, '').replace(/Z$/, '');
-    
+
     // Parse da string
     const [datePart, timePart] = cleanStr.split('T');
     if (!datePart || !timePart) {
         throw new Error('Formato de data inválido. Use YYYY-MM-DDTHH:mm');
     }
-    
+
     const [year, month, day] = datePart.split('-').map(Number);
     const [hours, minutes] = timePart.split(':').map(Number);
-    
-    // Cria Date usando valores locais (sem conversão de timezone)
-    // Usamos new Date() com valores locais para evitar conversão
-    const date = new Date();
-    date.setFullYear(year, month - 1, day);
-    date.setHours(hours, minutes || 0, 0, 0);
-    
+
+    // CORREÇÃO: Usar o construtor Date com parâmetros locais
+    // Isso cria um Date que representa a hora local, não UTC
+    // Quando o PostgreSQL receber este Date, ele irá armazenar corretamente
+    const date = new Date(year, month - 1, day, hours, minutes || 0, 0, 0);
+
     return date;
 }
 
@@ -58,7 +58,7 @@ export function formatLocalDateTime(date: Date): { date: string; time: string } 
     const day = String(date.getDate()).padStart(2, '0');
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
-    
+
     return {
         date: `${year}-${month}-${day}`,
         time: `${hours}:${minutes}`,
@@ -116,10 +116,8 @@ export function createLocalDate(
     hours: number = 0,
     minutes: number = 0
 ): Date {
-    const date = new Date();
-    date.setFullYear(year, month - 1, day);
-    date.setHours(hours, minutes, 0, 0);
-    return date;
+    // Usar construtor com parâmetros para criar Date em hora local
+    return new Date(year, month - 1, day, hours, minutes, 0, 0);
 }
 
 /**
@@ -141,31 +139,31 @@ export function formatDateToBR(dateStr: string): string {
  */
 export function parseDateFromBR(brDateStr: string): string | null {
     if (!brDateStr) return null;
-    
+
     // Remove caracteres não numéricos, exceto barras
     const cleaned = brDateStr.replace(/[^\d/]/g, '');
     const parts = cleaned.split('/').filter(Boolean);
-    
+
     if (parts.length < 3) return null;
-    
+
     const day = parts[0].padStart(2, '0');
     const month = parts[1].padStart(2, '0');
     const year = parts[2];
-    
+
     // Validação básica
     if (day.length !== 2 || month.length !== 2 || year.length !== 4) {
         return null;
     }
-    
+
     const dayNum = parseInt(day, 10);
     const monthNum = parseInt(month, 10);
     const yearNum = parseInt(year, 10);
-    
+
     // Validação de valores
     if (monthNum < 1 || monthNum > 12) return null;
     if (dayNum < 1 || dayNum > 31) return null;
     if (yearNum < 1900 || yearNum > 2100) return null;
-    
+
     // Validar se a data é válida (ex: 31/02 não existe)
     const date = new Date(yearNum, monthNum - 1, dayNum);
     if (
@@ -175,7 +173,7 @@ export function parseDateFromBR(brDateStr: string): string | null {
     ) {
         return null;
     }
-    
+
     return `${year}-${month}-${day}`;
 }
 
@@ -198,30 +196,30 @@ export function formatTimeToBR(timeStr: string): string {
  */
 export function parseTimeFromBR(brTimeStr: string): string | null {
     if (!brTimeStr) return null;
-    
+
     // Remove caracteres não numéricos, exceto dois pontos
     const cleaned = brTimeStr.replace(/[^\d:]/g, '');
-    
+
     if (!cleaned.includes(':')) {
         if (cleaned.length < 4) return null;
         const withColon = `${cleaned.slice(0, 2)}:${cleaned.slice(2)}`;
         const pattern = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
         return pattern.test(withColon) ? withColon : null;
     }
-    
+
     const parts = cleaned.split(':');
     if (parts.length !== 2) return null;
-    
+
     const hours = parts[0].padStart(2, '0');
     const minutes = parts[1].padStart(2, '0');
-    
+
     // Validação de valores
     const hoursNum = parseInt(hours, 10);
     const minutesNum = parseInt(minutes, 10);
-    
+
     if (hoursNum < 0 || hoursNum > 23) return null;
     if (minutesNum < 0 || minutesNum > 59) return null;
-    
+
     const formatted = `${hours}:${minutes}`;
     const pattern = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
     return pattern.test(formatted) ? formatted : null;
