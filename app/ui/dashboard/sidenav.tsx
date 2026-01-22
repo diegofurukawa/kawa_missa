@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { Home, Calendar, Settings, LogOut, Cog, X } from 'lucide-react';
+import { Home, Calendar, Settings, LogOut, Cog, X, Users } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
@@ -11,6 +11,7 @@ import Image from 'next/image';
 const links = [
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Missas', href: '/dashboard/masses', icon: Calendar },
+    { name: 'Usuários', href: '/dashboard/users', icon: Users },
     { name: 'Organização', href: '/dashboard/organization', icon: Settings },
     { name: 'Configuração', href: '/dashboard/config', icon: Cog },
 ];
@@ -69,11 +70,13 @@ export default function SideNav({ isOpen, onClose }: SideNavProps) {
                 onClose();
             }
 
-            // Sign out and redirect to select-tenant
+            // Sign out without redirect, then manually redirect to preserve current origin
             await signOut({
-                redirect: true,
-                callbackUrl: '/select-tenant?redirect=/dashboard/public'
+                redirect: false
             });
+
+            // Manual redirect to select-tenant page
+            router.push('/select-tenant?redirect=/dashboard/public');
         } catch (error) {
             console.error('Error signing out:', error);
             // Fallback: force redirect

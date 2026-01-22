@@ -33,7 +33,7 @@ export async function authenticate(
         const headersList = await headers();
         const host = headersList.get('host') || 'localhost:3115';
         const protocol = headersList.get('x-forwarded-proto') || headersList.get('x-forwarded-ssl') === 'on' ? 'https' : 'http';
-        
+
         // Normalize hostname: if it's 0.0.0.0, use localhost instead
         // This ensures URL consistency throughout the session
         let normalizedHost = host;
@@ -42,26 +42,14 @@ export async function authenticate(
         } else if (host === '0.0.0.0') {
             normalizedHost = 'localhost:3115';
         }
-        
+
         const origin = `${protocol}://${normalizedHost}`;
-        
-        // Use redirect: false to control the redirect URL manually
-        // This ensures we use the current request origin, not NEXTAUTH_URL
-        const result = await signIn('credentials', { 
-            ...Object.fromEntries(formData), 
-            redirect: false 
+
+        // Use redirectTo to ensure session is established before redirect
+        await signIn('credentials', {
+            ...Object.fromEntries(formData),
+            redirectTo: '/dashboard'
         });
-        
-        if (result?.error) {
-            if (result.error === 'CredentialsSignin') {
-                return 'Credenciais inválidas. Por favor, verifique seu email e senha.';
-            }
-            return 'Algo deu errado. Por favor, tente novamente.';
-        }
-        
-        // Use relative redirect - Next.js will use the current request origin
-        // The middleware will normalize the hostname to maintain consistency
-        redirect('/dashboard');
     } catch (error) {
         // Check if it's a redirect error (which means success)
         if (error && typeof error === 'object') {
@@ -75,7 +63,7 @@ export async function authenticate(
                 throw error; // Re-throw to let Next.js handle the redirect
             }
         }
-        
+
         if (error instanceof AuthError) {
             switch (error.type) {
                 case 'CredentialsSignin':
@@ -84,27 +72,56 @@ export async function authenticate(
                     return 'Algo deu errado. Por favor, tente novamente.';
             }
         }
-        
+
         console.error('Authentication error:', error);
         return 'Erro ao fazer login. Por favor, tente novamente.';
     }
 }
 
+
 const OnboardingSchema = z.object({
-    tenantName: z.string().min(3, 'Tenant name required'),
-    userName: z.string().min(3, 'User name required'),
-    email: z.string().email(),
-    password: z.string().min(6, 'Password min 6 chars'),
-    phone: z.string().optional(),
+    // Organization fields
+    tenantName: z.string().min(3, 'Nome da organização obrigatório'),
+    denomination: z.string().min(3, 'Denominação obrigatória'),
+    legalName: z.string().min(3, 'Razão social obrigatória'),
+    document: z.string().min(3, 'Documento obrigatório'),
+    responsibleName: z.string().min(3, 'Nome do responsável obrigatório'),
+    orgPhone: z.string().optional(),
+    // Address fields
+    zipCode: z.string().min(8, 'CEP obrigatório'),
+    street: z.string().min(1, 'Rua obrigatória'),
+    number: z.string().min(1, 'Número obrigatório'),
+    neighborhood: z.string().min(1, 'Bairro obrigatório'),
+    city: z.string().min(1, 'Cidade obrigatória'),
+    state: z.string().min(2, 'Estado obrigatório'),
+    // User fields
+    userName: z.string().min(3, 'Nome do usuário obrigatório'),
+    email: z.string().email('Email inválido'),
+    password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+    userPhone: z.string().optional(),
 });
 
 export async function createTenant(prevState: unknown, formData: FormData) {
     const validatedFields = OnboardingSchema.safeParse({
+        // Organization
         tenantName: formData.get('tenantName'),
+        denomination: formData.get('denomination'),
+        legalName: formData.get('legalName'),
+        document: formData.get('document'),
+        responsibleName: formData.get('responsibleName'),
+        orgPhone: formData.get('orgPhone'),
+        // Address
+        zipCode: formData.get('zipCode'),
+        street: formData.get('street'),
+        number: formData.get('number'),
+        neighborhood: formData.get('neighborhood'),
+        city: formData.get('city'),
+        state: formData.get('state'),
+        // User
         userName: formData.get('userName'),
         email: formData.get('email'),
         password: formData.get('password'),
-        phone: formData.get('phone'),
+        userPhone: formData.get('userPhone'),
     });
 
     if (!validatedFields.success) {
@@ -114,7 +131,12 @@ export async function createTenant(prevState: unknown, formData: FormData) {
         };
     }
 
-    const { tenantName, userName, email, password, phone } = validatedFields.data;
+    const {
+        tenantName, denomination, legalName, document, responsibleName, orgPhone,
+        zipCode, street, number, neighborhood, city, state,
+        userName, email, password, userPhone
+    } = validatedFields.data;
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
@@ -124,8 +146,22 @@ export async function createTenant(prevState: unknown, formData: FormData) {
             const tenant = await tx.tenant.create({
                 data: {
                     name: tenantName,
+                    denomination: denomination,
+                    legalName: legalName,
+                    document: document,
+                    responsibleName: responsibleName,
                     email: email,
-                    phone: phone,
+                    phone: orgPhone,
+                    address: {
+                        create: {
+                            zipCode: zipCode,
+                            street: street,
+                            number: number,
+                            neighborhood: neighborhood,
+                            city: city,
+                            state: state,
+                        }
+                    }
                 }
             });
 
@@ -135,7 +171,7 @@ export async function createTenant(prevState: unknown, formData: FormData) {
                     name: userName,
                     email: email,
                     password: hashedPassword,
-                    phone: phone,
+                    phone: userPhone,
                     role: 'ADMIN',
                 }
             });
@@ -143,7 +179,7 @@ export async function createTenant(prevState: unknown, formData: FormData) {
 
     } catch (err) {
         console.error(err);
-        
+
         // Handle Prisma unique constraint errors
         if (isPrismaError(err)) {
             if (err.code === 'P2002') {
@@ -156,18 +192,20 @@ export async function createTenant(prevState: unknown, formData: FormData) {
             // Handle other Prisma errors
             return { message: 'Erro ao criar conta. Por favor, tente novamente.' };
         }
-        
+
         return { message: 'Erro ao criar conta. Por favor, verifique os dados e tente novamente.' };
     }
 
-    try {
-        await signIn('credentials', { email, password, redirect: false });
-    } catch (e) {
-        console.error("Auto-login failed", e);
-    }
 
-    redirect('/dashboard');
+    // Auto-login with redirect to dashboard
+    // Using redirectTo ensures the session is fully established before navigation
+    await signIn('credentials', {
+        email,
+        password,
+        redirectTo: '/dashboard'
+    });
 }
+
 
 // --- TENANT ACTIONS ---
 
@@ -289,8 +327,8 @@ export async function createMass(prevState: unknown, formData: FormData) {
     if (!user) return { message: 'Usuário não encontrado. Por favor, faça login novamente.' };
 
     const configIdValue = formData.get('configId');
-    const configId = configIdValue && configIdValue.toString().trim() !== '' 
-        ? configIdValue.toString().trim() 
+    const configId = configIdValue && configIdValue.toString().trim() !== ''
+        ? configIdValue.toString().trim()
         : null;
 
     // Validate configId belongs to the same tenant if provided
@@ -299,7 +337,7 @@ export async function createMass(prevState: unknown, formData: FormData) {
             where: { id: configId },
             select: { tenantId: true }
         });
-        
+
         if (!config || config.tenantId !== user.tenantId) {
             return { message: 'Configuração não encontrada ou não autorizada.' };
         }
@@ -321,7 +359,7 @@ export async function createMass(prevState: unknown, formData: FormData) {
     }
 
     const { tenantId, date, type, description } = validatedFields.data;
-    
+
     // Convert local datetime string to Date (treating as local time, no timezone conversion)
     const dateObj = fromLocalDateTime(date);
     const slug = format(dateObj, "yyyyMMdd_HHmm");
@@ -333,7 +371,7 @@ export async function createMass(prevState: unknown, formData: FormData) {
         if (key.startsWith('role_')) {
             const roleName = key.replace('role_', '');
             const participantName = value.toString().trim();
-            
+
             if (participantName !== '') {
                 if (!participants[roleName]) {
                     participants[roleName] = [];
@@ -527,8 +565,8 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
     }
 
     const configIdValue = formData.get('configId');
-    const configId = configIdValue && configIdValue.toString().trim() !== '' 
-        ? configIdValue.toString().trim() 
+    const configId = configIdValue && configIdValue.toString().trim() !== ''
+        ? configIdValue.toString().trim()
         : null;
 
     // Validate configId belongs to the same tenant if provided
@@ -537,7 +575,7 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
             where: { id: configId },
             select: { tenantId: true }
         });
-        
+
         if (!config || config.tenantId !== user.tenantId) {
             return { message: 'Configuração não encontrada ou não autorizada.' };
         }
@@ -559,7 +597,7 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
     }
 
     const { date, type, description } = validatedFields.data;
-    
+
     // Convert local datetime string to Date (treating as local time, no timezone conversion)
     const dateObj = fromLocalDateTime(date);
     const slug = format(dateObj, "yyyyMMdd_HHmm");
@@ -570,7 +608,7 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
         if (key.startsWith('role_')) {
             const roleName = key.replace('role_', '');
             const participantName = value.toString().trim();
-            
+
             if (participantName !== '') {
                 if (!participants[roleName]) {
                     participants[roleName] = [];
@@ -618,7 +656,7 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
         if (key.startsWith('role_')) {
             const roleName = key.replace('role_', '');
             const participantName = value.toString().trim();
-            
+
             if (participantName !== '') {
                 if (!participants[roleName]) {
                     participants[roleName] = [];
@@ -741,7 +779,7 @@ export async function createConfig(prevState: unknown, formData: FormData) {
     if (!validatedFields.success) {
         const errorMessages = validatedFields.error.issues
             .map((issue) => issue.message).join(' ');
-        
+
         return {
             errors: validatedFields.error.flatten().fieldErrors,
             message: 'Por favor, verifique os dados preenchidos. ' + errorMessages,
@@ -843,7 +881,7 @@ export async function updateConfig(id: string, prevState: unknown, formData: For
     if (!validatedFields.success) {
         const errorMessages = validatedFields.error.issues
             .map((issue) => issue.message).join(' ');
-        
+
         return {
             errors: validatedFields.error.flatten().fieldErrors,
             message: 'Por favor, verifique os dados preenchidos. ' + errorMessages,
@@ -896,5 +934,258 @@ export async function deleteConfig(id: string) {
     } catch (err) {
         console.error(err);
         return { message: 'Erro ao excluir configuração. Por favor, tente novamente.' };
+    }
+}
+
+// --- USER ACTIONS ---
+
+const UserSchema = z.object({
+    name: z.string().min(3, 'Nome obrigatório'),
+    email: z.string().email('Email inválido'),
+    phone: z.string().optional(),
+    role: z.enum(['ADMIN', 'USER']).default('USER'),
+    password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres').optional(),
+});
+
+const ChangePasswordSchema = z.object({
+    newPassword: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+});
+
+export async function createUser(prevState: unknown, formData: FormData) {
+    const session = await auth();
+    if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+        return { message: 'Apenas administradores podem criar usuários.' };
+    }
+
+    const validatedFields = UserSchema.safeParse({
+        name: formData.get('name'),
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        role: formData.get('role'),
+        password: formData.get('password'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Por favor, preencha todos os campos obrigatórios.',
+        };
+    }
+
+    const { name, email, phone, role, password } = validatedFields.data;
+
+    if (!password) {
+        return { message: 'Senha é obrigatória para criar um novo usuário.' };
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    try {
+        await prisma.user.create({
+            data: {
+                tenantId: currentUser.tenantId,
+                name,
+                email,
+                phone,
+                password: hashedPassword,
+                role,
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        if (isPrismaError(err)) {
+            if (err.code === 'P2002') {
+                return { message: 'Este email já está cadastrado. Por favor, use outro email.' };
+            }
+            return { message: 'Erro ao criar usuário. Por favor, tente novamente.' };
+        }
+        return { message: 'Erro ao criar usuário. Por favor, verifique os dados e tente novamente.' };
+    }
+
+    revalidatePath('/dashboard/users');
+    return { message: 'Usuário criado com sucesso!', success: true };
+}
+
+export async function updateUser(id: string, prevState: unknown, formData: FormData) {
+    const session = await auth();
+    if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+        return { message: 'Apenas administradores podem editar usuários.' };
+    }
+
+    // Verify the user belongs to the same tenant
+    const userToUpdate = await prisma.user.findUnique({
+        where: { id },
+        select: { tenantId: true }
+    });
+
+    if (!userToUpdate || userToUpdate.tenantId !== currentUser.tenantId) {
+        return { message: 'Usuário não encontrado ou não autorizado.' };
+    }
+
+    const validatedFields = UserSchema.safeParse({
+        name: formData.get('name'),
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        role: formData.get('role'),
+        password: undefined, // Password is optional for updates
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Por favor, preencha todos os campos obrigatórios.',
+        };
+    }
+
+    const { name, email, phone, role } = validatedFields.data;
+
+    try {
+        await prisma.user.update({
+            where: { id },
+            data: {
+                name,
+                email,
+                phone,
+                role,
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        if (isPrismaError(err)) {
+            if (err.code === 'P2002') {
+                return { message: 'Este email já está cadastrado. Por favor, use outro email.' };
+            }
+            return { message: 'Erro ao atualizar usuário. Por favor, tente novamente.' };
+        }
+        return { message: 'Erro ao atualizar usuário. Por favor, verifique os dados e tente novamente.' };
+    }
+
+    revalidatePath('/dashboard/users');
+    return { message: 'Usuário atualizado com sucesso!', success: true };
+}
+
+export async function changeUserPassword(id: string, prevState: unknown, formData: FormData) {
+    const session = await auth();
+    if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+        return { message: 'Apenas administradores podem alterar senhas.' };
+    }
+
+    // Verify the user belongs to the same tenant
+    const userToUpdate = await prisma.user.findUnique({
+        where: { id },
+        select: { tenantId: true }
+    });
+
+    if (!userToUpdate || userToUpdate.tenantId !== currentUser.tenantId) {
+        return { message: 'Usuário não encontrado ou não autorizado.' };
+    }
+
+    const validatedFields = ChangePasswordSchema.safeParse({
+        newPassword: formData.get('newPassword'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Por favor, forneça uma senha válida.',
+        };
+    }
+
+    const { newPassword } = validatedFields.data;
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    try {
+        await prisma.user.update({
+            where: { id },
+            data: {
+                password: hashedPassword,
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        return { message: 'Erro ao alterar senha. Por favor, tente novamente.' };
+    }
+
+    revalidatePath('/dashboard/users');
+    return { message: 'Senha alterada com sucesso!', success: true };
+}
+
+export async function toggleUserActive(id: string) {
+    const session = await auth();
+    if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+        return { message: 'Apenas administradores podem ativar/desativar usuários.' };
+    }
+
+    // Verify the user belongs to the same tenant
+    const userToToggle = await prisma.user.findUnique({
+        where: { id },
+        select: { tenantId: true, role: true }
+    });
+
+    if (!userToToggle || userToToggle.tenantId !== currentUser.tenantId) {
+        return { message: 'Usuário não encontrado ou não autorizado.' };
+    }
+
+    // Prevent self-deactivation
+    if (id === currentUser.id) {
+        return { message: 'Você não pode desativar sua própria conta.' };
+    }
+
+    try {
+        // For now, we'll use the role field to simulate active/inactive
+        // ADMIN = active, USER = active, we need to add an 'active' field to schema
+        // Since we don't have an 'active' field yet, let's just return a message
+        // This will need a schema migration to add 'active Boolean @default(true)'
+
+        return { message: 'Funcionalidade de ativar/desativar requer migração do schema. Adicione campo "active" ao modelo User.', success: false };
+    } catch (err) {
+        console.error(err);
+        return { message: 'Erro ao alterar status do usuário. Por favor, tente novamente.' };
+    }
+}
+
+export async function deleteUser(id: string) {
+    const session = await auth();
+    if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+        return { message: 'Apenas administradores podem excluir usuários.' };
+    }
+
+    // Verify the user belongs to the same tenant
+    const userToDelete = await prisma.user.findUnique({
+        where: { id },
+        select: { tenantId: true }
+    });
+
+    if (!userToDelete || userToDelete.tenantId !== currentUser.tenantId) {
+        return { message: 'Usuário não encontrado ou não autorizado.' };
+    }
+
+    // Prevent self-deletion
+    if (id === currentUser.id) {
+        return { message: 'Você não pode excluir sua própria conta.' };
+    }
+
+    try {
+        await prisma.user.delete({ where: { id } });
+        revalidatePath('/dashboard/users');
+        return { message: 'Usuário excluído com sucesso!', success: true };
+    } catch (err) {
+        console.error(err);
+        return { message: 'Erro ao excluir usuário. Por favor, tente novamente.' };
     }
 }

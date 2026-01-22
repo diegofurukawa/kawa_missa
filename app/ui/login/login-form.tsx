@@ -1,13 +1,33 @@
 'use client';
 
 import { authenticate } from '@/lib/actions';
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
+    const router = useRouter();
     const [errorMessage, dispatch, isPending] = useActionState(
         authenticate,
         undefined,
     );
+
+    // Track if form has been submitted to avoid redirect on initial mount
+    const hasSubmitted = useRef(false);
+
+    // Track when form submission starts
+    useEffect(() => {
+        if (isPending) {
+            hasSubmitted.current = true;
+        }
+    }, [isPending]);
+
+    // Handle successful login (when errorMessage is undefined after submission)
+    useEffect(() => {
+        if (!isPending && errorMessage === undefined && hasSubmitted.current) {
+            // Force a full page reload to ensure session is properly loaded
+            window.location.href = '/dashboard';
+        }
+    }, [isPending, errorMessage]);
 
     return (
         <form action={dispatch} className="space-y-3">
@@ -54,8 +74,8 @@ export default function LoginForm() {
                         </div>
                     </div>
                 </div>
-                <button 
-                    className="mt-6 w-full bg-[#6d7749] hover:bg-[#5d6541] text-white p-2.5 rounded-md font-semibold transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed" 
+                <button
+                    className="mt-6 w-full bg-[#6d7749] hover:bg-[#5d6541] text-white p-2.5 rounded-md font-semibold transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-disabled={isPending}
                     disabled={isPending}
                 >

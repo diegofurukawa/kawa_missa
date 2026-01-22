@@ -155,3 +155,76 @@ export async function getAllTenants() {
         return [];
     }
 }
+// --- USER DATA FETCHING ---
+
+export async function getTenantUsers() {
+    const session = await auth();
+    if (!session?.user?.email) return [];
+
+    const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { tenantId: true }
+    });
+
+    if (!user) return [];
+
+    try {
+        const users = await prisma.user.findMany({
+            where: {
+                tenantId: user.tenantId
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                role: true,
+                createdAt: true,
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+        return users;
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        return [];
+    }
+}
+
+export async function getUserById(id: string) {
+    const session = await auth();
+    if (!session?.user?.email) return null;
+
+    const currentUser = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { tenantId: true }
+    });
+
+    if (!currentUser) return null;
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                tenantId: true,
+                name: true,
+                email: true,
+                phone: true,
+                role: true,
+                createdAt: true,
+            }
+        });
+
+        // Verify user belongs to same tenant
+        if (user && user.tenantId !== currentUser.tenantId) {
+            return null;
+        }
+
+        return user;
+    } catch (error) {
+        console.error('Failed to fetch user by id:', error);
+        return null;
+    }
+}

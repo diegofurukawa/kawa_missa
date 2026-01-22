@@ -16,4 +16,4 @@ else
 fi
 
 echo "Starting Next.js application..."
-node server.js
+npx next start
