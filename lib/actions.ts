@@ -667,14 +667,43 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
     });
 
     try {
-        // Verify the mass exists
+        // Verify the mass exists and get config for participant limits
         const mass = await prisma.mass.findUnique({
             where: { id },
-            select: { id: true }
+            select: {
+                id: true,
+                participants: true,
+                config: {
+                    select: {
+                        participantConfig: true
+                    }
+                }
+            }
         });
 
         if (!mass) {
             return { message: 'Missa não encontrada.' };
+        }
+
+        // Validate participant limits if config exists
+        if (mass.config?.participantConfig) {
+            const config = mass.config.participantConfig as { roles?: [string, number][] };
+            const roleLimits = config.roles || [];
+
+            // Check each role against its limit
+            for (const [roleName, limit] of roleLimits) {
+                const submittedCount = participants[roleName]?.length || 0;
+                if (submittedCount > limit) {
+                    return {
+                        message: `Ops! O limite de ${limit} ${roleName}${limit === 1 ? '' : 's'} já foi atingido. ` +
+                            `Parece que outra pessoa também está se inscrevendo. ` +
+                            `Mas não se preocupe, sua participação é muito importante! ` +
+                            `Entre em contato com a paróquia para verificar outras oportunidades de servir.`,
+                        limitExceeded: true,
+                        role: roleName
+                    };
+                }
+            }
         }
 
         await prisma.mass.update({

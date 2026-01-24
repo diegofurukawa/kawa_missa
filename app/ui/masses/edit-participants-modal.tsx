@@ -23,9 +23,10 @@ interface EditParticipantsModalProps {
     config: any;
     isOpen: boolean;
     onClose: () => void;
+    isLoggedIn?: boolean;
 }
 
-export default function EditParticipantsModal({ mass, config, isOpen, onClose }: EditParticipantsModalProps) {
+export default function EditParticipantsModal({ mass, config, isOpen, onClose, isLoggedIn = false }: EditParticipantsModalProps) {
     const [state, dispatch, isPending] = useActionState(
         (prevState: any, formData: FormData) => updateMassParticipants(mass.id, prevState, formData),
         undefined
@@ -128,6 +129,7 @@ export default function EditParticipantsModal({ mass, config, isOpen, onClose }:
                                         label={`${role} (${quantity})`}
                                         placeholder={`Digite o nome do ${role}`}
                                         maxTags={quantity}
+                                        canRemove={isLoggedIn}
                                     />
                                 ))}
                             </div>

@@ -219,6 +219,7 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
                     config={config}
                     isOpen={isModalOpen}
                     onClose={handleCloseModal}
+                    isLoggedIn={isLoggedIn}
                 />
             )}
         </>

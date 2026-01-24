@@ -4,6 +4,7 @@ import { useState, KeyboardEvent } from 'react';
 import { Plus } from 'lucide-react';
 import { Tag } from './tag';
 import clsx from 'clsx';
+import { toast } from 'sonner';
 
 interface TagInputProps {
     tags: string[];
@@ -13,6 +14,7 @@ interface TagInputProps {
     className?: string;
     maxTags?: number;
     allowDuplicates?: boolean;
+    canRemove?: boolean;
 }
 
 export function TagInput({
@@ -23,6 +25,7 @@ export function TagInput({
     className,
     maxTags,
     allowDuplicates = false,
+    canRemove = true,
 }: TagInputProps) {
     const [inputValue, setInputValue] = useState('');
 
@@ -45,6 +48,10 @@ export function TagInput({
     };
 
     const handleRemoveTag = (indexToRemove: number) => {
+        if (!canRemove) {
+            toast.info('Para retirar o nome, necessário solicitar ao responsável!');
+            return;
+        }
         onTagsChange(tags.filter((_, index) => index !== indexToRemove));
     };
 
@@ -107,9 +114,16 @@ export function TagInput({
             </div>
 
             {maxTags && (
-                <p className="text-xs text-gray-500">
-                    {tags.length} / {maxTags} tags
-                </p>
+                <div className="space-y-1">
+                    <p className="text-xs text-gray-500">
+                        {tags.length} / {maxTags} tags
+                    </p>
+                    {tags.length >= maxTags && (
+                        <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                            Todas as vagas foram preenchidas para esta função.
+                        </p>
+                    )}
+                </div>
             )}
         </div>
     );
