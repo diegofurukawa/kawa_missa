@@ -6,8 +6,7 @@ import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { Button } from '../button';
 import { TagInput } from '../tag-input';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatLongDateTimeUTC } from '@/lib/date-utils';
 
 type RoleTuple = [string, number];
 
@@ -98,7 +97,7 @@ export default function EditParticipantsModal({ mass, config, isOpen, onClose, i
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900">Editar Participantes</h2>
                             <p className="text-sm text-gray-500 mt-1">
-                                {format(mass.date, "EEEE, dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                                {formatLongDateTimeUTC(mass.date)}
                             </p>
                         </div>
                         <button

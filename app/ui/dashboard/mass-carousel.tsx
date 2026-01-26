@@ -1,10 +1,9 @@
 'use client';
 
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import EditParticipantsModal from '../masses/edit-participants-modal';
+import { formatDateTimeUTC, getWeekdayUTC } from '@/lib/date-utils';
 
 // Define type based on Prisma return, or explicit interface
 interface Mass {
@@ -113,7 +112,7 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
                                 <div className="bg-[#6d7749] p-4 flex-shrink-0">
                                     <div className="flex items-center justify-center gap-2 mb-2">
                                         <h3 className="text-white font-bold text-lg text-center capitalize">
-                                            {format(mass.date, 'EEEE', { locale: ptBR })}
+                                            {getWeekdayUTC(mass.date)}
                                         </h3>
                                         {mass.type && (
                                             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
@@ -126,7 +125,7 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
                                         )}
                                     </div>
                                     <p className="text-white/80 text-center text-sm mt-1">
-                                        {format(mass.date, 'dd/MM/yyyy HH:mm')}
+                                        {formatDateTimeUTC(mass.date)}
                                     </p>
                                 </div>
                                 <div className="p-4 space-y-3 bg-[#f6f5f8] flex-1 flex flex-col">

@@ -225,3 +225,72 @@ export function parseTimeFromBR(brTimeStr: string): string | null {
     return pattern.test(formatted) ? formatted : null;
 }
 
+/**
+ * Formata uma data usando UTC para evitar conversão de timezone
+ * Usado quando queremos exibir exatamente o que está salvo no banco
+ * @param date Date ou string ISO
+ * @returns String no formato dd/MM/yyyy HH:mm
+ */
+export function formatDateTimeUTC(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const year = d.getUTCFullYear();
+    const hours = String(d.getUTCHours()).padStart(2, '0');
+    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+/**
+ * Obtém o dia da semana em português usando UTC
+ * @param date Date ou string ISO
+ * @returns Nome do dia da semana em português
+ */
+export function getWeekdayUTC(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const weekdays = [
+        'Domingo',
+        'Segunda-feira',
+        'Terça-feira',
+        'Quarta-feira',
+        'Quinta-feira',
+        'Sexta-feira',
+        'Sábado'
+    ];
+    return weekdays[d.getUTCDay()];
+}
+
+/**
+ * Formata uma data em formato longo pt-BR usando UTC
+ * Ex: "Domingo, 01 de fevereiro de 2026 às 08:30"
+ * @param date Date ou string ISO
+ * @returns String formatada
+ */
+export function formatLongDateTimeUTC(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const weekday = getWeekdayUTC(d);
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const months = [
+        'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+        'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ];
+    const month = months[d.getUTCMonth()];
+    const year = d.getUTCFullYear();
+    const hours = String(d.getUTCHours()).padStart(2, '0');
+    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${weekday}, ${day} de ${month} de ${year} às ${hours}:${minutes}`;
+}
+
+/**
+ * Formata apenas a data em dd/MM/yyyy usando UTC
+ * @param date Date ou string ISO
+ * @returns String no formato dd/MM/yyyy
+ */
+export function formatDateOnlyUTC(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const year = d.getUTCFullYear();
+    return `${day}/${month}/${year}`;
+}
+

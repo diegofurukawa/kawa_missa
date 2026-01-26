@@ -6,8 +6,7 @@ import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { Button } from '../button';
 import { TagInput } from '../tag-input';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatLongDateTimeUTC, formatDateOnlyUTC } from '@/lib/date-utils';
 import ShareButton from '../share-button';
 import { useRouter } from 'next/navigation';
 
@@ -80,12 +79,12 @@ export default function EditParticipantsPage({ mass, config, shareUrl }: EditPar
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900">Editar Participantes</h2>
                     <p className="text-sm text-gray-500 mt-1">
-                        {format(mass.date, "EEEE, dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+                        {formatLongDateTimeUTC(mass.date)}
                     </p>
                 </div>
                 <ShareButton 
                     url={shareUrl}
-                    title={`Editar Participantes - ${format(mass.date, "dd/MM/yyyy", { locale: ptBR })}`}
+                    title={`Editar Participantes - ${formatDateOnlyUTC(mass.date)}`}
                     text="Compartilhe este link para editar os participantes da missa"
                 />
             </div>
