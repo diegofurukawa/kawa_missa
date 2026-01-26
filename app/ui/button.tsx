@@ -21,7 +21,7 @@ export function Button({
         secondary: 'bg-[#6546b8] hover:bg-[#563a9d] focus-visible:outline-[#6546b8]',
         tertiary: 'bg-blue-500 hover:bg-blue-600 focus-visible:outline-blue-500',
         'form-primary': 'bg-[#6d7749] hover:bg-[#5d6541] focus-visible:outline-[#6d7749]',
-        'form-secondary': 'bg-gray-200 hover:bg-gray-300 text-gray-900 focus-visible:outline-gray-500',
+        'form-secondary': 'bg-[#6546b8] hover:bg-[#563a9d] focus-visible:outline-[#6546b8]',
     };
     
     const sizeStyles = {
