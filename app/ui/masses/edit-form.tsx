@@ -1,9 +1,9 @@
 'use client';
 
-import { updateMass } from '@/lib/actions';
+import { updateMass, updateMassParticipants } from '@/lib/actions';
 import { useActionState } from 'react';
 import { toast } from 'sonner';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '../button';
 import { TagInput } from '../tag-input';
@@ -20,7 +20,7 @@ interface Mass {
     slug: string;
     date: Date;
     type?: string;
-    description?: string;
+    description?: string | null;
     participants: Record<string, string[]>;
     configId?: string | null;
 }
@@ -69,6 +69,10 @@ export default function EditMassForm({ mass, tenant, configs }: { mass: Mass; te
             return acc;
         }, {})
     );
+
+    // State for auto-save status per role
+    const [saveStatus, setSaveStatus] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+    const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout | null>>({});
 
     // Initialize date and time from existing mass (convert from UTC to local)
     const massDate = new Date(mass.date);
@@ -165,6 +169,51 @@ export default function EditMassForm({ mass, tenant, configs }: { mass: Mass; te
     const handleConfigChange = (configId: string) => {
         setSelectedConfigId(configId);
         setDateValidationMessage('');
+    };
+
+    const handleAutoSaveParticipants = (updatedParticipants: string[], role: string) => {
+        // Clear previous timeout for this role
+        if (saveTimeoutsRef.current[role]) {
+            clearTimeout(saveTimeoutsRef.current[role]!);
+        }
+
+        // Set status to saving
+        setSaveStatus(prev => ({ ...prev, [role]: 'saving' }));
+
+        // Debounce: wait 500ms before saving
+        saveTimeoutsRef.current[role] = setTimeout(async () => {
+            try {
+                const formData = new FormData();
+                updatedParticipants.forEach((name) => {
+                    if (name.trim() !== '') {
+                        formData.append(`role_${role}`, name.trim());
+                    }
+                });
+
+                const result = await updateMassParticipants(mass.id, undefined, formData);
+                
+                if (result.success) {
+                    setSaveStatus(prev => ({ ...prev, [role]: 'saved' }));
+                    // Reset status after 2 seconds
+                    setTimeout(() => {
+                        setSaveStatus(prev => ({ ...prev, [role]: 'idle' }));
+                    }, 2000);
+                } else {
+                    setSaveStatus(prev => ({ ...prev, [role]: 'error' }));
+                    toast.error(result.message || 'Erro ao salvar participantes');
+                    setTimeout(() => {
+                        setSaveStatus(prev => ({ ...prev, [role]: 'idle' }));
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error('Auto-save error:', error);
+                setSaveStatus(prev => ({ ...prev, [role]: 'error' }));
+                toast.error('Erro ao salvar participantes');
+                setTimeout(() => {
+                    setSaveStatus(prev => ({ ...prev, [role]: 'idle' }));
+                }, 2000);
+            }
+        }, 500); // 500ms debounce
     };
 
     const handleSuggestedDateClick = (suggestedDate: Date) => {
@@ -297,13 +346,12 @@ export default function EditMassForm({ mass, tenant, configs }: { mass: Mass; te
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Descrição <span className="text-red-500">*</span>
+                            Descrição <span className="text-gray-400">(opcional)</span>
                         </label>
                         <RichTextEditor
                             name="description"
                             value={description}
                             onChange={setDescription}
-                            required
                             rows={3}
                             className="w-full"
                             placeholder="Descreva a missa ou encontro..."
@@ -366,10 +414,13 @@ export default function EditMassForm({ mass, tenant, configs }: { mass: Mass; te
                                     ...prev,
                                     [role]: tags
                                 }));
+                                // Trigger auto-save when tags change
+                                handleAutoSaveParticipants(tags, role);
                             }}
                             label={`${role} (${quantity})`}
                             placeholder={`Digite o nome do ${role}`}
                             maxTags={quantity}
+                            saveStatus={saveStatus[role] || 'idle'}
                         />
                     ))}
                 </div>

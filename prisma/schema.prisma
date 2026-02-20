@@ -68,7 +68,7 @@ model Mass {
   slug         String
   date         DateTime
   type         String   @default("Missa")
-  description String
+  description  String?
   participants Json
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

@@ -15,6 +15,7 @@ interface TagInputProps {
     maxTags?: number;
     allowDuplicates?: boolean;
     canRemove?: boolean;
+    saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
 }
 
 export function TagInput({
@@ -26,6 +27,7 @@ export function TagInput({
     maxTags,
     allowDuplicates = false,
     canRemove = true,
+    saveStatus = 'idle',
 }: TagInputProps) {
     const [inputValue, setInputValue] = useState('');
 
@@ -67,9 +69,31 @@ export function TagInput({
     return (
         <div className={clsx('space-y-2', className)}>
             {label && (
-                <label className="block text-sm font-medium text-gray-700">
-                    {label}
-                </label>
+                <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700">
+                        {label}
+                    </label>
+                    {saveStatus !== 'idle' && (
+                        <div className="text-xs">
+                            {saveStatus === 'saving' && (
+                                <span className="text-gray-500 flex items-center gap-1">
+                                    <span className="inline-block w-3 h-3 bg-gray-400 rounded-full animate-pulse"></span>
+                                    Salvando...
+                                </span>
+                            )}
+                            {saveStatus === 'saved' && (
+                                <span className="text-green-600 flex items-center gap-1">
+                                    ✓ Salvo
+                                </span>
+                            )}
+                            {saveStatus === 'error' && (
+                                <span className="text-red-600 flex items-center gap-1">
+                                    ✗ Erro
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
             )}
 
             <div className="flex flex-wrap gap-2 p-2.5 min-h-[42px] border border-gray-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-[#6d7749] focus-within:border-[#6d7749] transition-colors">
@@ -108,7 +132,7 @@ export function TagInput({
                         aria-label="Adicionar participante"
                         title="Clique para adicionar"
                     >
-                        <Plus className="h-5 w-5 stroke-[3]" />
+                        <Plus className="h-5 w-5 stroke-3" />
                     </button>
                 </div>
             </div>

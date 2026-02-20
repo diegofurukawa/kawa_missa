@@ -90,9 +90,10 @@ export async function generateMetadata({
   }
 }
 
-export default async function PublicDashboardPage({ searchParams }: { searchParams: Promise<{ tenant?: string }> }) {
+export default async function PublicDashboardPage({ searchParams }: { searchParams: Promise<{ tenant?: string; page?: string }> }) {
   const resolvedSearchParams = await searchParams;
   const tenantSlug = resolvedSearchParams.tenant;
+  const currentPage = parseInt(resolvedSearchParams.page || '1', 10);
 
   // Se não tem tenant, redireciona para seleção
   if (!tenantSlug) {
@@ -139,7 +140,7 @@ export default async function PublicDashboardPage({ searchParams }: { searchPara
       {/* Carousel Section */}
       <section>
         <h2 className="text-xl font-semibold mb-4 text-gray-800 text-center px-4 md:px-0">Próximas Missas</h2>
-        <MassCarousel masses={masses} isLoggedIn={false} config={config} />
+        <MassCarousel masses={masses} isLoggedIn={false} config={config} tenantSlug={tenantSlug} currentPage={currentPage} />
       </section>
 
       {/* Catholic Message Banner */}

@@ -5,26 +5,29 @@
 
 /**
  * Converte um objeto Date para string no formato local (YYYY-MM-DDTHH:mm)
- * Sem timezone, tratando como hora local
- * @param date Objeto Date
+ * Converte de UTC para BRT (UTC-3)
+ * @param date Objeto Date (em UTC do banco)
  * @returns String no formato YYYY-MM-DDTHH:mm
  */
 export function toLocalDateTime(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    // Converter de UTC para BRT (subtrair 3 horas)
+    const brtDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+    
+    const year = brtDate.getUTCFullYear();
+    const month = String(brtDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(brtDate.getUTCDate()).padStart(2, '0');
+    const hours = String(brtDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(brtDate.getUTCMinutes()).padStart(2, '0');
 
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 /**
  * Converte uma string local (YYYY-MM-DDTHH:mm) para Date
- * Trata a string como hora local, sem conversão de timezone
- * IMPORTANTE: Cria um Date que quando salvo no PostgreSQL mantém a hora local
+ * Trata a string como hora local BRT (UTC-3), convertendo para UTC para salvar no banco
+ * IMPORTANTE: O banco PostgreSQL armazena em UTC, então precisamos converter
  * @param str String no formato YYYY-MM-DDTHH:mm (sem timezone)
- * @returns Objeto Date em hora local
+ * @returns Objeto Date em UTC que representa a hora local BRT
  */
 export function fromLocalDateTime(str: string): Date {
     // Remove qualquer timezone que possa estar presente
@@ -39,25 +42,29 @@ export function fromLocalDateTime(str: string): Date {
     const [year, month, day] = datePart.split('-').map(Number);
     const [hours, minutes] = timePart.split(':').map(Number);
 
-    // CORREÇÃO: Usar o construtor Date com parâmetros locais
-    // Isso cria um Date que representa a hora local, não UTC
-    // Quando o PostgreSQL receber este Date, ele irá armazenar corretamente
-    const date = new Date(year, month - 1, day, hours, minutes || 0, 0, 0);
+    // Criar Date em UTC que representa a hora local BRT
+    // BRT é UTC-3, então para salvar 19:00 BRT no banco como UTC,
+    // precisamos salvar como 22:00 UTC (19 + 3 = 22)
+    const date = new Date(Date.UTC(year, month - 1, day, hours + 3, minutes || 0, 0, 0));
 
     return date;
 }
 
 /**
  * Formata um Date para inputs separados de data e hora
- * @param date Objeto Date
+ * Converte de UTC para BRT (UTC-3) para exibição
+ * @param date Objeto Date (em UTC do banco)
  * @returns Objeto com date (YYYY-MM-DD) e time (HH:mm)
  */
 export function formatLocalDateTime(date: Date): { date: string; time: string } {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    // Converter de UTC para BRT (subtrair 3 horas)
+    const brtDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+    
+    const year = brtDate.getUTCFullYear();
+    const month = String(brtDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(brtDate.getUTCDate()).padStart(2, '0');
+    const hours = String(brtDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(brtDate.getUTCMinutes()).padStart(2, '0');
 
     return {
         date: `${year}-${month}-${day}`,
@@ -291,6 +298,90 @@ export function formatDateOnlyUTC(date: Date | string): string {
     const day = String(d.getUTCDate()).padStart(2, '0');
     const month = String(d.getUTCMonth() + 1).padStart(2, '0');
     const year = d.getUTCFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+/**
+ * Formata uma data usando hora LOCAL (BRT, UTC-3)
+ * Converte de UTC para BRT para exibição
+ * @param date Date ou string ISO (em UTC do banco)
+ * @returns String no formato dd/MM/yyyy HH:mm
+ */
+export function formatDateTime(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    // Converter de UTC para BRT (subtrair 3 horas)
+    const brtDate = new Date(d.getTime() - (3 * 60 * 60 * 1000));
+    
+    const day = String(brtDate.getUTCDate()).padStart(2, '0');
+    const month = String(brtDate.getUTCMonth() + 1).padStart(2, '0');
+    const year = brtDate.getUTCFullYear();
+    const hours = String(brtDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(brtDate.getUTCMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+/**
+ * Obtém o dia da semana em português usando hora LOCAL (BRT)
+ * Converte de UTC para BRT para cálculo correto
+ * @param date Date ou string ISO (em UTC do banco)
+ * @returns Nome do dia da semana em português
+ */
+export function getWeekday(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    // Converter de UTC para BRT (subtrair 3 horas)
+    const brtDate = new Date(d.getTime() - (3 * 60 * 60 * 1000));
+    
+    const weekdays = [
+        'Domingo',
+        'Segunda-feira',
+        'Terça-feira',
+        'Quarta-feira',
+        'Quinta-feira',
+        'Sexta-feira',
+        'Sábado'
+    ];
+    return weekdays[brtDate.getUTCDay()];
+}
+
+/**
+ * Formata uma data em formato longo pt-BR usando hora LOCAL (BRT)
+ * Converte de UTC para BRT para exibição
+ * Ex: "Domingo, 01 de fevereiro de 2026 às 08:30"
+ * @param date Date ou string ISO (em UTC do banco)
+ * @returns String formatada
+ */
+export function formatLongDateTime(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    // Converter de UTC para BRT (subtrair 3 horas)
+    const brtDate = new Date(d.getTime() - (3 * 60 * 60 * 1000));
+    
+    const weekday = getWeekday(d);
+    const day = String(brtDate.getUTCDate()).padStart(2, '0');
+    const months = [
+        'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+        'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+    ];
+    const month = months[brtDate.getUTCMonth()];
+    const year = brtDate.getUTCFullYear();
+    const hours = String(brtDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(brtDate.getUTCMinutes()).padStart(2, '0');
+    return `${weekday}, ${day} de ${month} de ${year} às ${hours}:${minutes}`;
+}
+
+/**
+ * Formata apenas a data em dd/MM/yyyy usando hora LOCAL (BRT)
+ * Converte de UTC para BRT para exibição
+ * @param date Date ou string ISO (em UTC do banco)
+ * @returns String no formato dd/MM/yyyy
+ */
+export function formatDateOnly(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    // Converter de UTC para BRT (subtrair 3 horas)
+    const brtDate = new Date(d.getTime() - (3 * 60 * 60 * 1000));
+    
+    const day = String(brtDate.getUTCDate()).padStart(2, '0');
+    const month = String(brtDate.getUTCMonth() + 1).padStart(2, '0');
+    const year = brtDate.getUTCFullYear();
     return `${day}/${month}/${year}`;
 }
 

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import EditParticipantsModal from '../masses/edit-participants-modal';
-import { formatDateTimeUTC, getWeekdayUTC } from '@/lib/date-utils';
+import { formatDateTime, getWeekday } from '@/lib/date-utils';
 
 // Define type based on Prisma return, or explicit interface
 interface Mass {
@@ -11,7 +11,7 @@ interface Mass {
     slug: string;
     date: Date;
     type?: string;
-    description?: string;
+    description?: string | null;
     participants: any; // Json - Record<string, string[]>
 }
 
@@ -19,9 +19,11 @@ interface MassCarouselProps {
     masses: Mass[];
     isLoggedIn?: boolean;
     config?: any;
+    tenantSlug?: string;
+    currentPage?: number;
 }
 
-export default function MassCarousel({ masses, isLoggedIn = false, config }: MassCarouselProps) {
+export default function MassCarousel({ masses, isLoggedIn = false, config, tenantSlug, currentPage = 1 }: MassCarouselProps) {
     const router = useRouter();
     const [selectedMass, setSelectedMass] = useState<Mass | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,6 +32,10 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
     const [activeIndex, setActiveIndex] = useState(0);
     const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Estado para navegação desktop
+    const [desktopPage, setDesktopPage] = useState(currentPage - 1);
+    const CARDS_PER_PAGE_DESKTOP = 4;
 
     // IntersectionObserver para rastrear card ativo em mobile
     useEffect(() => {
@@ -73,14 +79,51 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
         setSelectedMass(null);
     };
 
+    const handlePageChange = (newPage: number) => {
+        setDesktopPage(newPage);
+        if (tenantSlug) {
+            router.push(`/dashboard/public?tenant=${tenantSlug}&page=${newPage + 1}`);
+        }
+    };
+
     return (
         <>
+            {/* Desktop Navigation */}
+            {masses.length > CARDS_PER_PAGE_DESKTOP && (
+                <div className="hidden md:flex items-center justify-between mb-4">
+                    <div className="text-sm text-gray-600">
+                        {desktopPage * CARDS_PER_PAGE_DESKTOP + 1} - {Math.min((desktopPage + 1) * CARDS_PER_PAGE_DESKTOP, masses.length)} de {masses.length}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => handlePageChange(Math.max(0, desktopPage - 1))}
+                            disabled={desktopPage === 0}
+                            className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            aria-label="Anterior"
+                        >
+                            ←
+                        </button>
+                        <button
+                            onClick={() => handlePageChange(Math.min(Math.ceil(masses.length / CARDS_PER_PAGE_DESKTOP) - 1, desktopPage + 1))}
+                            disabled={desktopPage >= Math.ceil(masses.length / CARDS_PER_PAGE_DESKTOP) - 1}
+                            className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            aria-label="Próximo"
+                        >
+                            →
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div
                 ref={containerRef}
                 className="w-full overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-hide"
             >
                 <div className="flex space-x-4 min-w-max pl-[5vw] pr-[5vw] md:pl-0 md:pr-0">
-                    {masses.map((mass, index) => {
+                    {masses
+                        .slice(desktopPage * CARDS_PER_PAGE_DESKTOP, (desktopPage + 1) * CARDS_PER_PAGE_DESKTOP)
+                        .map((mass, index) => {
+                        const actualIndex = desktopPage * CARDS_PER_PAGE_DESKTOP + index;
                         const participants = mass.participants as Record<string, string[]>;
                         
                         // Pegar todos os roles da configuração com suas quantidades
@@ -101,18 +144,18 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
                         return (
                             <div
                                 key={mass.id}
-                                ref={(el) => { cardRefs.current[index] = el; }}
+                                ref={(el) => { cardRefs.current[actualIndex] = el; }}
                                 onClick={() => handleCardClick(mass)}
-                                className={`w-[90vw] md:w-64 snap-center bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 flex-shrink-0 flex flex-col min-h-[280px] transition-all ${
+                                className={`w-[90vw] md:w-64 snap-center bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 shrink-0 flex flex-col min-h-[280px] transition-all ${
                                     isLoggedIn || !isLoggedIn
                                         ? 'cursor-pointer hover:shadow-md hover:border-[#6d7749]'
                                         : ''
                                 }`}
                             >
-                                <div className="bg-[#6d7749] p-4 flex-shrink-0">
+                                <div className="bg-[#6d7749] p-4 shrink-0">
                                     <div className="flex items-center justify-center gap-2 mb-2">
                                         <h3 className="text-white font-bold text-lg text-center capitalize">
-                                            {getWeekdayUTC(mass.date)}
+                                            {getWeekday(mass.date)}
                                         </h3>
                                         {mass.type && (
                                             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
@@ -125,12 +168,12 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
                                         )}
                                     </div>
                                     <p className="text-white/80 text-center text-sm mt-1">
-                                        {formatDateTimeUTC(mass.date)}
+                                        {formatDateTime(mass.date)}
                                     </p>
                                 </div>
                                 <div className="p-4 space-y-3 bg-[#f6f5f8] flex-1 flex flex-col">
                                     {mass.description && (
-                                        <div className="pb-2 border-b border-gray-200 flex-shrink-0">
+                                        <div className="pb-2 border-b border-gray-200 shrink-0">
                                             <div 
                                                 className="text-sm text-gray-700 line-clamp-2 max-w-none [&_strong]:font-bold [&_em]:italic [&_p[style*='text-align:center']]:text-center"
                                                 title={mass.description.replace(/<[^>]*>/g, '')}
@@ -149,7 +192,7 @@ export default function MassCarousel({ masses, isLoggedIn = false, config }: Mas
                                         const isComplete = expectedQuantity > 0 && currentCount >= expectedQuantity;
                                         
                                         return (
-                                            <div key={roleName} className="pb-2 border-b border-gray-100 last:border-0 last:pb-0 flex-shrink-0">
+                                            <div key={roleName} className="pb-2 border-b border-gray-100 last:border-0 last:pb-0 shrink-0">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">{roleName}</span>
                                                     {expectedQuantity > 0 && (

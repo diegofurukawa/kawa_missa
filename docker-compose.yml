@@ -16,11 +16,14 @@ services:
     ports:
       - "${EXTERNAL_PORT:-3115}:${INTERNAL_PORT:-3115}"
     networks:
-      furukawatech-network:
-        ipv4_address: 172.30.0.55
+      kawatech-network:
+        ipv4_address: 172.27.0.55
     # All environment variables for Portainer
     # These will be provided via Portainer Environment Variables section
     environment:
+      # === Timezone ===
+      TZ: America/Sao_Paulo
+
       # === Docker Build ===
       DOCKER_BUILD: "true"
 
@@ -78,5 +81,5 @@ services:
 
 # Custom Network
 networks:
-  furukawatech-network:
+  kawatech-network:
     external: true

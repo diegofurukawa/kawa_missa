@@ -10,7 +10,7 @@ import { TagInput } from '../tag-input';
 import DateInput from '../date-input';
 import TimeInput from '../time-input';
 import RichTextEditor from '../rich-text-editor';
-import { isNearValidCronDate, formatCronDescription } from '@/lib/cron-utils';
+import { formatCronDescription } from '@/lib/cron-utils';
 import { combineLocalDateTime } from '@/lib/date-utils';
 
 type RoleTuple = [string, number];
@@ -21,7 +21,7 @@ interface Config {
     participantConfig: { roles?: RoleTuple[] };
 }
 
-export default function CreateMassForm({ tenant, configs }: { tenant: any; configs: Config[] }) {
+export default function CreateMassForm({ tenant, configs }: { tenant: { id: string; name: string }; configs: Config[] }) {
     const router = useRouter();
     const [state, dispatch, isPending] = useActionState(createMass, undefined);
     const [stateMulti, dispatchMulti, isPendingMulti] = useActionState(createMasses, undefined);
@@ -70,6 +70,7 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
 
     // State for suggested dates from CRON
     const [suggestedDates, setSuggestedDates] = useState<Date[]>([]);
+    const [visibleCount, setVisibleCount] = useState<number>(6);
     const [dateValidationMessage, setDateValidationMessage] = useState<string>('');
 
     // Update role tuples when config changes
@@ -81,13 +82,13 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
             ["Cantor", 1]
         ];
         
-        setParticipantsByRole(
+        setParticipantsByRole(prev =>
             newRoleTuples.reduce((acc: Record<string, string[]>, [role]: RoleTuple) => {
-                acc[role] = participantsByRole[role] || [];
+                acc[role] = prev[role] || [];
                 return acc;
             }, {})
         );
-    }, [selectedConfig]);
+    }, [participantConfig?.roles]);
 
     // Calculate suggested dates when config or cron changes
     useEffect(() => {
@@ -100,7 +101,7 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                 },
                 body: JSON.stringify({
                     cronExpression,
-                    count: 10
+                    count: 30
                 })
             })
             .then(res => res.json())
@@ -108,6 +109,7 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                 if (data.dates) {
                     const dates = data.dates.map((dateStr: string) => new Date(dateStr));
                     setSuggestedDates(dates);
+                    setVisibleCount(6); // Reset visible count when config changes
                 }
             })
             .catch(error => {
@@ -338,13 +340,12 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Descrição <span className="text-red-500">*</span>
+                            Descrição <span className="text-gray-400">(opcional)</span>
                         </label>
                         <RichTextEditor
                             name="description"
                             value={description}
                             onChange={setDescription}
-                            required
                             rows={3}
                             className="w-full"
                             placeholder="Descreva a missa ou encontro..."
@@ -363,8 +364,8 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                                 {selectedDates.length} {selectedDates.length === 1 ? 'data selecionada' : 'datas selecionadas'}
                             </div>
                         )}
-                        <div className="flex flex-wrap gap-2">
-                            {suggestedDates.slice(0, 5).map((suggestedDate, index) => {
+                        <div className="flex flex-wrap gap-2 transition-all duration-300">
+                            {suggestedDates.slice(0, visibleCount).map((suggestedDate, index) => {
                                 const isSelected = selectedDates.some(d => d.getTime() === suggestedDate.getTime());
                                 const dateStr = suggestedDate.toLocaleDateString('pt-BR', {
                                     weekday: 'short',
@@ -383,7 +384,7 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                                         key={index}
                                         type="button"
                                         onClick={() => handleSuggestedDateClick(suggestedDate)}
-                                        className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                                        className={`px-3 py-1.5 text-xs rounded-lg border transition-all duration-300 ${
                                             isSelected
                                                 ? 'bg-[#6d7749] text-white border-[#6d7749] hover:bg-[#5a6239]'
                                                 : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
@@ -393,6 +394,35 @@ export default function CreateMassForm({ tenant, configs }: { tenant: any; confi
                                     </button>
                                 );
                             })}
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                            {suggestedDates.length > visibleCount && (
+                                <button
+                                    type="button"
+                                    onClick={() => setVisibleCount(prev => prev + 6)}
+                                    className="px-3 py-1.5 text-xs font-medium text-[#6d7749] bg-white border border-[#6d7749] rounded-lg hover:bg-[#f6f5f8] transition-colors"
+                                >
+                                    + {Math.min(6, suggestedDates.length - visibleCount)} mais datas
+                                </button>
+                            )}
+                            {suggestedDates.length > 0 && selectedDates.length < suggestedDates.length && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedDates([...suggestedDates])}
+                                    className="px-3 py-1.5 text-xs font-medium text-white bg-[#6d7749] border border-[#6d7749] rounded-lg hover:bg-[#5a6239] transition-colors"
+                                >
+                                    Selecionar todas
+                                </button>
+                            )}
+                            {selectedDates.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedDates([])}
+                                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                                >
+                                    Limpar seleção
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}

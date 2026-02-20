@@ -307,7 +307,7 @@ const MassSchema = z.object({
     tenantId: z.string(),
     date: z.string(), // ISO datetime string from combined date and time (local, no timezone)
     type: z.enum(['Missa', 'Encontro']).default('Missa'),
-    description: z.string().min(1, 'Descrição é obrigatória'),
+    description: z.string().optional().nullable(),
     configId: z.string().optional().nullable(),
 });
 
@@ -315,7 +315,7 @@ const MassesSchema = z.object({
     tenantId: z.string(),
     dates: z.array(z.string()), // Array of ISO datetime strings
     type: z.enum(['Missa', 'Encontro']).default('Missa'),
-    description: z.string().min(1, 'Descrição é obrigatória'),
+    description: z.string().optional().nullable(),
     configId: z.string().optional().nullable(),
 });
 
@@ -648,8 +648,10 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
 
 export async function updateMassParticipants(id: string, prevState: unknown, formData: FormData) {
     // This action allows public (non-authenticated) access to update only participants
-    // No authentication required, but we should validate the mass exists
+    // But if authenticated, validate that user has access to this mass's tenant
 
+    const session = await auth();
+    
     // Parse participants from formData dynamic keys
     const participants: Record<string, string[]> = {};
     formData.forEach((value, key) => {
@@ -672,6 +674,7 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
             where: { id },
             select: {
                 id: true,
+                tenantId: true,
                 participants: true,
                 config: {
                     select: {
@@ -683,6 +686,18 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
 
         if (!mass) {
             return { message: 'Missa não encontrada.' };
+        }
+
+        // If authenticated, validate tenant access
+        if (session?.user?.email) {
+            const user = await prisma.user.findUnique({
+                where: { email: session.user.email },
+                select: { tenantId: true }
+            });
+
+            if (!user || user.tenantId !== mass.tenantId) {
+                return { message: 'Não autorizado para atualizar esta missa.' };
+            }
         }
 
         // Validate participant limits if config exists
@@ -963,6 +978,45 @@ export async function deleteConfig(id: string) {
     } catch (err) {
         console.error(err);
         return { message: 'Erro ao excluir configuração. Por favor, tente novamente.' };
+    }
+}
+
+export async function copyConfig(id: string) {
+    const session = await auth();
+    if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
+
+    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!user) return { message: 'Usuário não encontrado. Por favor, faça login novamente.' };
+
+    try {
+        // Fetch the config to copy
+        const config = await prisma.config.findUnique({
+            where: { id },
+            select: {
+                tenantId: true,
+                cronConfig: true,
+                participantConfig: true
+            }
+        });
+
+        if (!config || config.tenantId !== user.tenantId) {
+            return { message: 'Configuração não encontrada ou não autorizada.' };
+        }
+
+        // Create a new config with the same data
+        await prisma.config.create({
+            data: {
+                tenantId: user.tenantId,
+                cronConfig: config.cronConfig as any,
+                participantConfig: config.participantConfig as any
+            }
+        });
+
+        revalidatePath('/dashboard/config');
+        return { message: 'Configuração copiada com sucesso!', success: true };
+    } catch (err) {
+        console.error(err);
+        return { message: 'Erro ao copiar configuração. Por favor, tente novamente.' };
     }
 }
 

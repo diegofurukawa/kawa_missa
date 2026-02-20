@@ -33,7 +33,7 @@ export async function getUpcomingMasses(tenantId: string) {
         orderBy: {
             date: 'asc'
         },
-        take: 7
+        take: 365
     }).catch((error) => {
         // Fallback if config relation doesn't exist yet
         console.error('Error fetching masses with config:', error);
@@ -47,7 +47,7 @@ export async function getUpcomingMasses(tenantId: string) {
             orderBy: {
                 date: 'asc'
             },
-            take: 7
+            take: 365
         });
     });
 }
@@ -226,5 +226,38 @@ export async function getUserById(id: string) {
     } catch (error) {
         console.error('Failed to fetch user by id:', error);
         return null;
+    }
+}
+
+
+// --- MASS FILTER DATA ---
+
+export async function getMassDistinctWeekdays(tenantId: string): Promise<number[]> {
+    try {
+        const result = await prisma.$queryRaw<Array<{ weekday: number }>>`
+            SELECT DISTINCT EXTRACT(DOW FROM ("date" - INTERVAL '3 hours')) AS weekday
+            FROM "Mass"
+            WHERE "tenantId" = ${tenantId}
+            ORDER BY weekday ASC
+        `;
+        return result.map(r => Number(r.weekday)).sort((a, b) => a - b);
+    } catch (error) {
+        console.error('Failed to fetch distinct weekdays:', error);
+        return [];
+    }
+}
+
+export async function getMassDistinctTimes(tenantId: string): Promise<string[]> {
+    try {
+        const result = await prisma.$queryRaw<Array<{ time: string }>>`
+            SELECT DISTINCT TO_CHAR("date" - INTERVAL '3 hours', 'HH24:MI') AS time
+            FROM "Mass"
+            WHERE "tenantId" = ${tenantId}
+            ORDER BY time ASC
+        `;
+        return result.map(r => r.time).sort();
+    } catch (error) {
+        console.error('Failed to fetch distinct times:', error);
+        return [];
     }
 }

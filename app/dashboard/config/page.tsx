@@ -7,6 +7,7 @@ import Pagination from '@/app/ui/pagination';
 import { prisma } from '@/lib/prisma';
 import { Suspense } from 'react';
 import { DeleteConfigButton } from '@/app/ui/config/delete-button';
+import { CopyConfigButton } from '@/app/ui/config/copy-button';
 
 export const metadata: Metadata = {
     title: "Configurações",
@@ -123,6 +124,9 @@ export default async function ConfigPage({ searchParams }: ConfigPageProps) {
                                     >
                                         Editar
                                     </Link>
+                                    <div className="flex-1">
+                                        <CopyConfigButton configId={config.id} />
+                                    </div>
                                     <DeleteConfigButton configId={config.id} />
                                 </div>
                             </div>
@@ -182,6 +186,7 @@ export default async function ConfigPage({ searchParams }: ConfigPageProps) {
                                             >
                                                 Editar
                                             </Link>
+                                            <CopyConfigButton configId={config.id} />
                                             <DeleteConfigButton configId={config.id} />
                                         </div>
                                     </td>
