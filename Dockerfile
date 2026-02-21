@@ -30,14 +30,19 @@ ENV DOCKER_BUILD=true
 RUN npx prisma generate
 
 # Build the project
-RUN yarn build
+RUN \
+    if [ -f yarn.lock ]; then yarn build; \
+    elif [ -f package-lock.json ]; then npm run build; \
+    elif [ -f pnpm-lock.yaml ]; then pnpm run build; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
 
-# Production image - NOT using standalone
+# Production image
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV TZ America/Sao_Paulo
+ENV NODE_ENV=production
+ENV TZ=America/Sao_Paulo
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -62,10 +67,10 @@ RUN chmod +x ./scripts/start.sh
 
 USER nextjs
 
-EXPOSE 3115
+ARG FRONTEND_PORT
+ENV PORT=${FRONTEND_PORT}
+ENV HOSTNAME="0.0.0.0"
 
-ENV PORT=3115
-ENV INTERNAL_PORT=3115
-ENV HOSTNAME "0.0.0.0"
+EXPOSE ${FRONTEND_PORT}
 
 CMD ["./scripts/start.sh"]
