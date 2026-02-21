@@ -38,9 +38,18 @@ export default function MassCarousel({ masses, isLoggedIn = false, config, tenan
     const [desktopPage, setDesktopPage] = useState(currentPage - 1);
     const CARDS_PER_PAGE_DESKTOP = 4;
 
+    // Detecta se é mobile (< 768px) de forma segura para SSR
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     // IntersectionObserver para rastrear card ativo em mobile
     useEffect(() => {
-        if (typeof window !== 'undefined' && window.innerWidth >= 768) return;
+        if (!isMobile) return;
         if (masses.length === 0) return;
 
         const observer = new IntersectionObserver((entries) => {
@@ -54,7 +63,7 @@ export default function MassCarousel({ masses, isLoggedIn = false, config, tenan
 
         cardRefs.current.forEach(card => card && observer.observe(card));
         return () => observer.disconnect();
-    }, [masses.length]);
+    }, [masses.length, isMobile]);
 
     if (!masses || masses.length === 0) {
         return (
@@ -121,10 +130,13 @@ export default function MassCarousel({ masses, isLoggedIn = false, config, tenan
                 className="w-full overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none scrollbar-hide"
             >
                 <div className="flex space-x-4 min-w-max pl-[5vw] pr-[5vw] md:pl-0 md:pr-0">
-                    {masses
-                        .slice(desktopPage * CARDS_PER_PAGE_DESKTOP, (desktopPage + 1) * CARDS_PER_PAGE_DESKTOP)
-                        .map((mass, index) => {
-                        const actualIndex = desktopPage * CARDS_PER_PAGE_DESKTOP + index;
+                    {(isMobile
+                        ? masses
+                        : masses.slice(desktopPage * CARDS_PER_PAGE_DESKTOP, (desktopPage + 1) * CARDS_PER_PAGE_DESKTOP)
+                    ).map((mass, index) => {
+                        const actualIndex = isMobile
+                            ? index
+                            : desktopPage * CARDS_PER_PAGE_DESKTOP + index;
                         const participants = mass.participants as Record<string, string[]>;
                         
                         // Pegar todos os roles da configuração com suas quantidades
