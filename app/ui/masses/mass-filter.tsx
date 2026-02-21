@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 
 interface MassFilterProps {
@@ -8,6 +8,7 @@ interface MassFilterProps {
   times: string[];
   currentWeekday?: string;
   currentTime?: string;
+  basePath?: string;
 }
 
 const WEEKDAY_NAMES = [
@@ -25,41 +26,53 @@ export function MassFilter({
   times,
   currentWeekday,
   currentTime,
+  basePath,
 }: MassFilterProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+
+  // Props are the single source of truth for active filter state.
+  // useSearchParams() was intentionally removed to prevent React error #300
+  // (dual state update: Server Component re-render via props + client hook update in the same cycle).
+
+  // Builds a clean URL containing only weekday, time, and page params.
+  // Any other query params present in the current URL are intentionally not preserved —
+  // callers should pass basePath with all required persistent params (e.g. ?tenant=slug).
+  // Uses '&' as separator when basePath already contains a '?' to avoid double-? malformed URLs.
+  const buildUrl = useCallback(
+    (newWeekday?: string, newTime?: string) => {
+      const params = new URLSearchParams();
+      if (newWeekday !== undefined) params.set('weekday', newWeekday);
+      if (newTime !== undefined) params.set('time', newTime);
+      params.set('page', '1');
+      const qs = params.toString();
+      if (!basePath) return `?${qs}`;
+      const separator = basePath.includes('?') ? '&' : '?';
+      return `${basePath}${separator}${qs}`;
+    },
+    [basePath]
+  );
 
   const handleWeekdayToggle = useCallback(
     (weekday: number) => {
-      const params = new URLSearchParams(searchParams);
-      if (params.get('weekday') === String(weekday)) {
-        params.delete('weekday');
-      } else {
-        params.set('weekday', String(weekday));
-      }
-      params.set('page', '1');
-      router.push(`?${params.toString()}`);
+      const isActive = currentWeekday === String(weekday);
+      router.push(buildUrl(
+        isActive ? undefined : String(weekday),
+        currentTime
+      ));
     },
-    [router, searchParams]
+    [router, buildUrl, currentWeekday, currentTime]
   );
 
   const handleTimeToggle = useCallback(
     (time: string) => {
-      const params = new URLSearchParams(searchParams);
-      if (params.get('time') === time) {
-        params.delete('time');
-      } else {
-        params.set('time', time);
-      }
-      params.set('page', '1');
-      router.push(`?${params.toString()}`);
+      const isActive = currentTime === time;
+      router.push(buildUrl(
+        currentWeekday,
+        isActive ? undefined : time
+      ));
     },
-    [router, searchParams]
+    [router, buildUrl, currentWeekday, currentTime]
   );
-
-  if (weekdays.length === 0 && times.length === 0) {
-    return null;
-  }
 
   return (
     <div className="mb-6 space-y-4">

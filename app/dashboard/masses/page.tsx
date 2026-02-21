@@ -139,12 +139,17 @@ export default async function MassesPage({ searchParams }: MassesPageProps) {
                 </Link>
             </div>
 
-            <MassFilter
-                weekdays={distinctWeekdays}
-                times={distinctTimes}
-                currentWeekday={resolvedSearchParams.weekday}
-                currentTime={resolvedSearchParams.time}
-            />
+            {/* Suspense keeps pattern consistent with public/page.tsx and dashboard/page.tsx,
+                providing a safety boundary if useRouter triggers async issues in future Next.js versions */}
+            <Suspense fallback={null}>
+                <MassFilter
+                    weekdays={distinctWeekdays}
+                    times={distinctTimes}
+                    currentWeekday={resolvedSearchParams.weekday}
+                    currentTime={resolvedSearchParams.time}
+                    basePath="/dashboard/masses"
+                />
+            </Suspense>
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 {/* Desktop Table */}

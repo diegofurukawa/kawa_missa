@@ -23,9 +23,11 @@ interface MassCarouselProps {
     config?: Config;
     tenantSlug?: string;
     currentPage?: number;
+    currentWeekday?: string;
+    currentTime?: string;
 }
 
-export default function MassCarousel({ masses, isLoggedIn = false, config, tenantSlug, currentPage = 1 }: MassCarouselProps) {
+export default function MassCarousel({ masses, isLoggedIn = false, config, tenantSlug, currentPage = 1, currentWeekday, currentTime }: MassCarouselProps) {
     const router = useRouter();
     const [selectedMass, setSelectedMass] = useState<Mass | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,6 +40,11 @@ export default function MassCarousel({ masses, isLoggedIn = false, config, tenan
     // Estado para navegação desktop
     const [desktopPage, setDesktopPage] = useState(currentPage - 1);
     const CARDS_PER_PAGE_DESKTOP = 4;
+
+    // Sync desktopPage when currentPage prop changes (e.g. after filter navigation resets to page 1)
+    useEffect(() => {
+        setDesktopPage(currentPage - 1);
+    }, [currentPage]);
 
     // Detecta se é mobile (< 768px) de forma segura para SSR
     const [isMobile, setIsMobile] = useState(false);
@@ -66,13 +73,10 @@ export default function MassCarousel({ masses, isLoggedIn = false, config, tenan
         return () => observer.disconnect();
     }, [masses.length, isMobile]);
 
-    if (!masses || masses.length === 0) {
-        return (
-            <div className="p-4 bg-[#f6f5f8] rounded">
-                <p className="text-gray-500 text-center">Nenhuma missa agendada para os próximos dias.</p>
-            </div>
-        );
-    }
+    // Reset activeIndex when masses change (e.g. after filter applied)
+    useEffect(() => {
+        setActiveIndex(0);
+    }, [masses.length]);
 
     const handleCardClick = (mass: Mass) => {
         if (isLoggedIn) {
@@ -94,9 +98,24 @@ export default function MassCarousel({ masses, isLoggedIn = false, config, tenan
     const handlePageChange = (newPage: number) => {
         setDesktopPage(newPage);
         if (tenantSlug) {
-            router.push(`/dashboard/public?tenant=${tenantSlug}&page=${newPage + 1}`);
+            // Preserve active filters (weekday, time) when paginating so they are not lost
+            const params = new URLSearchParams();
+            params.set('tenant', tenantSlug);
+            params.set('page', String(newPage + 1));
+            if (currentWeekday !== undefined) params.set('weekday', currentWeekday);
+            if (currentTime !== undefined) params.set('time', currentTime);
+            router.push(`/dashboard/public?${params.toString()}`);
         }
     };
+
+    // Early return AFTER all hooks are called to comply with React Rules of Hooks
+    if (!masses || masses.length === 0) {
+        return (
+            <div className="p-4 bg-[#f6f5f8] rounded">
+                <p className="text-gray-500 text-center">Nenhuma missa agendada para os próximos dias.</p>
+            </div>
+        );
+    }
 
     return (
         <>
@@ -161,11 +180,7 @@ export default function MassCarousel({ masses, isLoggedIn = false, config, tenan
                                 key={mass.id}
                                 ref={(el) => { cardRefs.current[actualIndex] = el; }}
                                 onClick={() => handleCardClick(mass)}
-                                className={`w-[90vw] md:w-64 snap-center bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 shrink-0 flex flex-col min-h-[280px] transition-all ${
-                                    isLoggedIn || !isLoggedIn
-                                        ? 'cursor-pointer hover:shadow-md hover:border-[#6d7749]'
-                                        : ''
-                                }`}
+                                className="w-[90vw] md:w-64 snap-center bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 shrink-0 flex flex-col min-h-[280px] transition-all cursor-pointer hover:shadow-md hover:border-[#6d7749]"
                             >
                                 <div className="bg-[#6d7749] p-4 shrink-0">
                                     <div className="flex items-center justify-center gap-2 mb-2">

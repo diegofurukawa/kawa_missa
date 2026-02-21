@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { getUpcomingMasses, getUserTenant, getLatestConfig } from '@/lib/data';
+import { getUpcomingMassesFiltered, getUserTenant, getLatestConfig, getMassDistinctWeekdays, getMassDistinctTimes } from '@/lib/data';
 import MassCarousel from '@/app/ui/dashboard/mass-carousel';
 import CatholicMessageBanner from '@/app/ui/dashboard/catholic-message-banner';
 import ShareButton from '@/app/ui/share-button';
+import { MassFilter } from '@/app/ui/masses/mass-filter';
 import { generateShareUrl } from '@/app/ui/share-url-generator';
 import { auth } from '@/auth';
+import { Suspense } from 'react';
 
 export const metadata: Metadata = {
     title: "Dashboard",
@@ -15,21 +17,31 @@ export const metadata: Metadata = {
     },
 };
 
-export default async function Dashboard() {
+interface DashboardProps {
+    searchParams: Promise<{ weekday?: string; time?: string }>;
+}
+
+export default async function Dashboard({ searchParams }: DashboardProps) {
     const session = await auth();
     const isLoggedIn = !!session?.user;
 
-    const tenant = await getUserTenant();
-    const masses = tenant ? await getUpcomingMasses(tenant.id) : [];
-    const config = tenant ? await getLatestConfig(tenant.id) : null;
+    const resolvedSearchParams = await searchParams;
+    const parsedWeekday = parseInt(resolvedSearchParams.weekday ?? '', 10);
+    const weekdayFilter = !isNaN(parsedWeekday) && parsedWeekday >= 0 && parsedWeekday <= 6 ? parsedWeekday : undefined;
+    const timeFilter = /^\d{2}:\d{2}$/.test(resolvedSearchParams.time ?? '') ? resolvedSearchParams.time : undefined;
 
-    // Build the public dashboard URL for sharing
-    const publicDashboardUrl = tenant
-        ? await generateShareUrl({ type: 'dashboard', tenantId: tenant.id })
-        : null;
+    const tenant = await getUserTenant();
+
+    const [masses, config, distinctWeekdays, distinctTimes, publicDashboardUrl] = await Promise.all([
+        tenant ? getUpcomingMassesFiltered(tenant.id, { weekday: weekdayFilter, time: timeFilter }) : Promise.resolve([]),
+        tenant ? getLatestConfig(tenant.id) : Promise.resolve(null),
+        tenant ? getMassDistinctWeekdays(tenant.id) : Promise.resolve([]),
+        tenant ? getMassDistinctTimes(tenant.id) : Promise.resolve([]),
+        tenant ? generateShareUrl({ type: 'dashboard', tenantId: tenant.id }) : Promise.resolve(null),
+    ]);
 
     return (
-        <div className="w-full space-y-8">
+        <div className="w-full space-y-6">
 
             {/* Welcome Section - Only show for logged-in users */}
             {isLoggedIn && (
@@ -55,13 +67,26 @@ export default async function Dashboard() {
                 </div>
             )}
 
+            {/* Filters */}
+            {isLoggedIn && tenant && (
+                <Suspense fallback={null}>
+                    <MassFilter
+                        weekdays={distinctWeekdays}
+                        times={distinctTimes}
+                        currentWeekday={resolvedSearchParams.weekday}
+                        currentTime={resolvedSearchParams.time}
+                        basePath="/dashboard"
+                    />
+                </Suspense>
+            )}
+
             {/* Carousel Section */}
             {tenant && (
                 <section>
                     {isLoggedIn && (
                         <h2 className="text-xl font-semibold mb-4 text-gray-800">Próximas Missas e Encontros</h2>
                     )}
-                    <MassCarousel masses={masses.map(m => ({ ...m, participants: (m.participants ?? {}) as Record<string, string[]> }))} isLoggedIn={isLoggedIn} config={config ?? undefined} />
+                    <MassCarousel masses={masses.map(m => ({ ...m, participants: (m.participants ?? {}) as Record<string, string[]> }))} isLoggedIn={isLoggedIn} config={config ?? undefined} currentPage={1} currentWeekday={resolvedSearchParams.weekday} currentTime={resolvedSearchParams.time} />
                 </section>
             )}
 

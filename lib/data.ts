@@ -53,6 +53,62 @@ export async function getUpcomingMasses(tenantId: string) {
     });
 }
 
+export async function getUpcomingMassesFiltered(
+    tenantId: string,
+    filters?: { weekday?: number; time?: string }
+) {
+    try {
+        if (filters?.weekday === undefined && !filters?.time) {
+            return getUpcomingMasses(tenantId);
+        }
+
+        // Use NOW() directly in the query so the comparison uses PostgreSQL's timezone,
+        // avoiding inconsistency with new Date() which depends on the Node.js process timezone.
+        let query = `
+            SELECT m.*, row_to_json(c.*) as config
+            FROM "Mass" m
+            LEFT JOIN "Config" c ON m."configId" = c.id
+            WHERE m."tenantId" = $1
+              AND m."date" >= NOW()
+        `;
+        const params: (string | number)[] = [tenantId];
+        let paramIndex = 2;
+
+        if (filters?.weekday !== undefined) {
+            query += ` AND EXTRACT(DOW FROM (m."date" - INTERVAL '3 hours')) = $${paramIndex}`;
+            params.push(filters.weekday);
+            paramIndex++;
+        }
+
+        if (filters?.time) {
+            query += ` AND TO_CHAR(m."date" - INTERVAL '3 hours', 'HH24:MI') = $${paramIndex}`;
+            params.push(filters.time);
+            paramIndex++;
+        }
+
+        query += ` ORDER BY m."date" ASC LIMIT 365`;
+
+        const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(query, ...params);
+
+        return rows.map((row) => ({
+            id: row.id as string,
+            slug: row.slug as string,
+            tenantId: row.tenantId as string,
+            configId: row.configId as string | null,
+            date: new Date(row.date as string),
+            type: row.type as string | undefined,
+            description: row.description as string | null,
+            participants: row.participants as Record<string, string[]>,
+            updatedAt: new Date(row.updatedAt as string),
+            createdAt: new Date(row.createdAt as string),
+            config: row.config ?? null,
+        }));
+    } catch (error) {
+        console.error('Error fetching filtered upcoming masses:', error);
+        return [];
+    }
+}
+
 export async function getConfigs(tenantId: string) {
     return await prisma.config.findMany({
         where: {
