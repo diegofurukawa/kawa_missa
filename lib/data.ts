@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
+import type { Config } from '@/lib/definitions';
 
 export async function getUserTenant() {
     const session = await auth();
@@ -63,8 +64,8 @@ export async function getConfigs(tenantId: string) {
     });
 }
 
-export async function getLatestConfig(tenantId: string) {
-    return await prisma.config.findFirst({
+export async function getLatestConfig(tenantId: string): Promise<Config | null> {
+    const result = await prisma.config.findFirst({
         where: {
             tenantId: tenantId
         },
@@ -72,6 +73,8 @@ export async function getLatestConfig(tenantId: string) {
             createdAt: 'desc'
         }
     });
+    if (!result) return null;
+    return result as unknown as Config;
 }
 
 export async function getAllConfigs(tenantId: string) {
