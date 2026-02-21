@@ -37,6 +37,7 @@ ENV NEXT_PUBLIC_HIDE_NEXTJS_DEV_TOOLS=$NEXT_PUBLIC_HIDE_NEXTJS_DEV_TOOLS
 
 # Set Docker build environment variable
 ENV DOCKER_BUILD=true
+ENV NODE_OPTIONS="--max-old-space-size=512"
 
 # Generate Prisma Client
 RUN npx prisma generate
