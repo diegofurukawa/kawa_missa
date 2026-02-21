@@ -1,0 +1,30 @@
+# Dependencies — installed fresh inside the container
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js build output
+.next
+out
+
+# Environment files — only .env.build is needed at build time
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# IDE / OS
+.DS_Store
+*.pem
+.vscode
+.idea
+
+# Misc
+coverage
+.plans
+*.tsbuildinfo
+next-env.d.ts

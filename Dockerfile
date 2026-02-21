@@ -20,6 +20,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Load build-time env so Next.js can read it during static page generation
+COPY .env.build .env
+
 # Build-time variables (passed via docker-compose build args)
 ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_API_URL
