@@ -70,8 +70,8 @@ model Mass {
   type         String   @default("Missa")
   description  String?
   participants Json
-  createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   config       Config?  @relation(fields: [configId], references: [id], onDelete: SetNull)
 

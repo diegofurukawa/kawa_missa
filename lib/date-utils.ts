@@ -83,18 +83,6 @@ export function combineLocalDateTime(dateStr: string, timeStr: string): string {
 }
 
 /**
- * Converte um Date do banco (UTC) para hora local para exibição
- * PostgreSQL armazena em UTC, então precisamos converter para local
- * @param utcDate Date vindo do banco (assumido como UTC)
- * @returns Date em hora local
- */
-export function utcToLocal(utcDate: Date): Date {
-    // O Date do JavaScript já trata como local quando criado a partir de string UTC
-    // Mas para garantir, vamos criar um novo Date com os valores locais
-    return new Date(utcDate.getTime() + (utcDate.getTimezoneOffset() * 60000));
-}
-
-/**
  * Converte um Date local para UTC para salvar no banco
  * @param localDate Date em hora local
  * @returns Date em UTC (para salvar no banco)
@@ -240,11 +228,11 @@ export function parseTimeFromBR(brTimeStr: string): string | null {
  */
 export function formatDateTimeUTC(date: Date | string): string {
     const d = typeof date === 'string' ? new Date(date) : date;
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const year = d.getUTCFullYear();
-    const hours = String(d.getUTCHours()).padStart(2, '0');
-    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
     return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
@@ -264,7 +252,7 @@ export function getWeekdayUTC(date: Date | string): string {
         'Sexta-feira',
         'Sábado'
     ];
-    return weekdays[d.getUTCDay()];
+    return weekdays[d.getDay()];
 }
 
 /**
@@ -276,15 +264,15 @@ export function getWeekdayUTC(date: Date | string): string {
 export function formatLongDateTimeUTC(date: Date | string): string {
     const d = typeof date === 'string' ? new Date(date) : date;
     const weekday = getWeekdayUTC(d);
-    const day = String(d.getUTCDate()).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
     const months = [
         'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
         'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
     ];
-    const month = months[d.getUTCMonth()];
-    const year = d.getUTCFullYear();
-    const hours = String(d.getUTCHours()).padStart(2, '0');
-    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
     return `${weekday}, ${day} de ${month} de ${year} às ${hours}:${minutes}`;
 }
 
@@ -295,9 +283,9 @@ export function formatLongDateTimeUTC(date: Date | string): string {
  */
 export function formatDateOnlyUTC(date: Date | string): string {
     const d = typeof date === 'string' ? new Date(date) : date;
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const year = d.getUTCFullYear();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
     return `${day}/${month}/${year}`;
 }
 

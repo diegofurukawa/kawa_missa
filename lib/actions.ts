@@ -676,6 +676,7 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
                 id: true,
                 tenantId: true,
                 participants: true,
+                updatedAt: true,
                 config: {
                     select: {
                         participantConfig: true
@@ -719,6 +720,17 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
                     };
                 }
             }
+        }
+
+        // Optimistic locking: check if mass was updated by someone else
+        // Get the current version from the client (if provided)
+        const clientUpdatedAt = formData.get('_updatedAt')?.toString();
+        if (clientUpdatedAt && new Date(clientUpdatedAt).getTime() !== mass.updatedAt.getTime()) {
+            return {
+                message: 'Conflito de edição: Os dados foram alterados por outro usuário. Por favor, recarregue a página e tente novamente.',
+                conflict: true,
+                currentUpdatedAt: mass.updatedAt.toISOString()
+            };
         }
 
         await prisma.mass.update({

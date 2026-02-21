@@ -5,6 +5,26 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcrypt';
 
+// Validate required environment variables for authentication
+function validateAuthSecrets() {
+    const requiredSecrets = ['AUTH_SECRET', 'NEXTAUTH_SECRET', 'JWT_SECRET'];
+    const missingSecrets = requiredSecrets.filter(secret => !process.env[secret]);
+    
+    if (missingSecrets.length > 0) {
+        const secretsList = missingSecrets.join(', ');
+        throw new Error(
+            `Variáveis de ambiente de autenticação não configuradas: ${secretsList}. ` +
+            `Por favor, configure estas variáveis em seu arquivo .env. ` +
+            `Você pode gerar valores seguros com: openssl rand -base64 32`
+        );
+    }
+}
+
+// Validate secrets on module load
+if (process.env.NODE_ENV !== 'test') {
+    validateAuthSecrets();
+}
+
 async function getUser(email: string) {
     try {
         const user = await prisma.user.findUnique({ where: { email } });

@@ -23,3 +23,21 @@ export type State = {
     };
     message?: string | null;
 };
+
+// Config types for mass carousel and configuration
+export interface ParticipantConfig {
+    roles?: [string, number][]; // [roleName, quantity]
+}
+
+export interface CronConfig {
+    [key: string]: unknown;
+}
+
+export interface Config {
+    id: string;
+    tenantId: string;
+    cronConfig: CronConfig;
+    participantConfig: ParticipantConfig;
+    createdAt?: Date;
+    updatedAt?: Date;
+}

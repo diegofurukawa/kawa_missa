@@ -2,7 +2,10 @@ import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
-  // Removed standalone mode due to Prisma 7 WASM compatibility issues
+  // Prisma 7 WASM é incompatível com standalone mode
+  // Quando standalone está ativado, o WASM não é copiado corretamente para o output
+  // Workaround: usar output padrão (não standalone)
+  // Referência: https://github.com/prisma/prisma/issues/...
   // output: "standalone",
   // Add empty turbopack config to silence the warning
   turbopack: {},

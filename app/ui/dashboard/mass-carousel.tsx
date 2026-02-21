@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import EditParticipantsModal from '../masses/edit-participants-modal';
 import { formatDateTime, getWeekday } from '@/lib/date-utils';
+import type { Config } from '@/lib/definitions';
 
 // Define type based on Prisma return, or explicit interface
 interface Mass {
@@ -12,13 +13,13 @@ interface Mass {
     date: Date;
     type?: string;
     description?: string | null;
-    participants: any; // Json - Record<string, string[]>
+    participants: Record<string, string[]>;
 }
 
 interface MassCarouselProps {
     masses: Mass[];
     isLoggedIn?: boolean;
-    config?: any;
+    config?: Config;
     tenantSlug?: string;
     currentPage?: number;
 }
@@ -127,7 +128,7 @@ export default function MassCarousel({ masses, isLoggedIn = false, config, tenan
                         const participants = mass.participants as Record<string, string[]>;
                         
                         // Pegar todos os roles da configuração com suas quantidades
-                        const participantConfig = config?.participantConfig as { roles?: [string, number][] } | undefined;
+                        const participantConfig = config?.participantConfig;
                         const allRoles = participantConfig?.roles || [];
                         
                         // Criar mapa de roles com quantidades esperadas
