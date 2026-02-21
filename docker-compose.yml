@@ -7,6 +7,13 @@ services:
       context: .
       dockerfile: Dockerfile
       target: builder
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+        NEXT_PUBLIC_DEFAULT_HOSTS: ${NEXT_PUBLIC_DEFAULT_HOSTS}
+        NEXT_PUBLIC_CEP_API_URL: ${NEXT_PUBLIC_CEP_API_URL}
+        NEXT_PUBLIC_HIDE_NEXTJS_DEV_TOOLS: ${NEXT_PUBLIC_HIDE_NEXTJS_DEV_TOOLS:-true}
     container_name: kawa_missa_migrate
     restart: "no"
     command: ["npx", "prisma", "migrate", "deploy"]
@@ -25,6 +32,12 @@ services:
       target: runner
       args:
         FRONTEND_PORT: ${FRONTEND_PORT}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+        NEXT_PUBLIC_DEFAULT_HOSTS: ${NEXT_PUBLIC_DEFAULT_HOSTS}
+        NEXT_PUBLIC_CEP_API_URL: ${NEXT_PUBLIC_CEP_API_URL}
+        NEXT_PUBLIC_HIDE_NEXTJS_DEV_TOOLS: ${NEXT_PUBLIC_HIDE_NEXTJS_DEV_TOOLS:-true}
     image: kawa_missa:latest
     pull_policy: never
     container_name: kawa_missa
