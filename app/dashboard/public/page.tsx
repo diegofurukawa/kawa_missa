@@ -140,7 +140,7 @@ export default async function PublicDashboardPage({ searchParams }: { searchPara
       {/* Carousel Section */}
       <section>
         <h2 className="text-xl font-semibold mb-4 text-gray-800 text-center px-4 md:px-0">Próximas Missas</h2>
-        <MassCarousel masses={masses.map(m => ({ ...m, participants: (m.participants ?? {}) as Record<string, string[]> }))} isLoggedIn={false} config={config} tenantSlug={tenantSlug} currentPage={currentPage} />
+        <MassCarousel masses={masses.map(m => ({ ...m, participants: (m.participants ?? {}) as Record<string, string[]> }))} isLoggedIn={false} config={config ?? undefined} tenantSlug={tenantSlug} currentPage={currentPage} />
       </section>
 
       {/* Catholic Message Banner */}

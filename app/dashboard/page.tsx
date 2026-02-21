@@ -61,7 +61,7 @@ export default async function Dashboard() {
                     {isLoggedIn && (
                         <h2 className="text-xl font-semibold mb-4 text-gray-800">Próximas Missas e Encontros</h2>
                     )}
-                    <MassCarousel masses={masses.map(m => ({ ...m, participants: (m.participants ?? {}) as Record<string, string[]> }))} isLoggedIn={isLoggedIn} config={config} />
+                    <MassCarousel masses={masses.map(m => ({ ...m, participants: (m.participants ?? {}) as Record<string, string[]> }))} isLoggedIn={isLoggedIn} config={config ?? undefined} />
                 </section>
             )}
 
