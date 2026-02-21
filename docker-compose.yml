@@ -84,6 +84,7 @@ services:
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
       NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
       NEXT_PUBLIC_DEFAULT_HOSTS: ${NEXT_PUBLIC_DEFAULT_HOSTS}
+      NEXT_PUBLIC_HIDE_NEXTJS_DEV_TOOLS: ${NEXT_PUBLIC_HIDE_NEXTJS_DEV_TOOLS:-true}
 
 # Custom Network (external — must exist before stack deploy)
 networks:
