@@ -21,11 +21,25 @@ export async function getUserTenant() {
 }
 
 export async function getUpcomingMasses(tenantId: string) {
+    // Compare against the start of today in BRT (UTC-3), not the current instant.
+    // This ensures masses scheduled for today are included regardless of their time.
+    const now = new Date();
+    const startOfTodayBRT = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        3, 0, 0, 0  // 03:00 UTC = 00:00 BRT (UTC-3)
+    ));
+    // If it's before 03:00 UTC (i.e., still "yesterday" in BRT), go back one day
+    if (now.getUTCHours() < 3) {
+        startOfTodayBRT.setUTCDate(startOfTodayBRT.getUTCDate() - 1);
+    }
+
     return await prisma.mass.findMany({
         where: {
             tenantId: tenantId,
             date: {
-                gte: new Date(),
+                gte: startOfTodayBRT,
             }
         },
         include: {
@@ -42,7 +56,7 @@ export async function getUpcomingMasses(tenantId: string) {
             where: {
                 tenantId: tenantId,
                 date: {
-                    gte: new Date(),
+                    gte: startOfTodayBRT,
                 }
             },
             orderBy: {
@@ -62,14 +76,15 @@ export async function getUpcomingMassesFiltered(
             return getUpcomingMasses(tenantId);
         }
 
-        // Use NOW() directly in the query so the comparison uses PostgreSQL's timezone,
-        // avoiding inconsistency with new Date() which depends on the Node.js process timezone.
+        // Compare date-only in BRT (UTC-3) so all masses scheduled for today are included
+        // regardless of their time. Using NOW() with full datetime would hide same-day
+        // past-hour masses. Casting to ::date after shifting by -3h gives BRT calendar date.
         let query = `
             SELECT m.*, row_to_json(c.*) as config
             FROM "Mass" m
             LEFT JOIN "Config" c ON m."configId" = c.id
             WHERE m."tenantId" = $1
-              AND m."date" >= NOW()
+              AND (m."date" - INTERVAL '3 hours')::date >= (NOW() - INTERVAL '3 hours')::date
         `;
         const params: (string | number)[] = [tenantId];
         let paramIndex = 2;
