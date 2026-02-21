@@ -733,12 +733,21 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
             };
         }
 
-        await prisma.mass.update({
+        // CR-025: Merge com dados existentes para preservar roles não submetidos neste request
+        const existingParticipants = (mass.participants as Record<string, string[]>) || {};
+        const mergedParticipants = { ...existingParticipants, ...participants };
+
+        const updated = await prisma.mass.update({
             where: { id },
             data: {
-                participants: participants,
-            }
+                participants: mergedParticipants,
+            },
+            select: { updatedAt: true }
         });
+
+        revalidatePath('/dashboard/public');
+        revalidatePath('/dashboard');
+        return { message: 'Participantes atualizados com sucesso!', success: true, currentUpdatedAt: updated.updatedAt.toISOString() };
     } catch (err) {
         console.error(err);
         if (isPrismaError(err)) {
@@ -746,10 +755,6 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
         }
         return { message: 'Erro ao atualizar participantes. Por favor, verifique os dados e tente novamente.' };
     }
-
-    revalidatePath('/dashboard/public');
-    revalidatePath('/dashboard');
-    return { message: 'Participantes atualizados com sucesso!', success: true };
 }
 
 // --- CONFIG ACTIONS ---

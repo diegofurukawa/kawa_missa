@@ -16,6 +16,7 @@ interface TagInputProps {
     allowDuplicates?: boolean;
     canRemove?: boolean;
     saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+    onMaxTagsReached?: () => void;
 }
 
 export function TagInput({
@@ -28,6 +29,7 @@ export function TagInput({
     allowDuplicates = false,
     canRemove = true,
     saveStatus = 'idle',
+    onMaxTagsReached,
 }: TagInputProps) {
     const [inputValue, setInputValue] = useState('');
 
@@ -37,6 +39,9 @@ export function TagInput({
         if (!trimmedValue) return;
 
         if (maxTags && tags.length >= maxTags) {
+            toast.info('Todas as vagas foram preenchidas!');
+            setInputValue('');
+            onMaxTagsReached?.();
             return;
         }
 
@@ -60,6 +65,7 @@ export function TagInput({
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
+            if (maxTags && tags.length >= maxTags) return;
             handleAddTag();
         } else if (e.key === 'Backspace' && inputValue === '' && tags.length > 0) {
             handleRemoveTag(tags.length - 1);
@@ -107,7 +113,7 @@ export function TagInput({
                     </Tag>
                 ))}
 
-                <div className="flex items-center gap-1 flex-1 min-w-[120px]">
+                <div className="flex items-center gap-1 w-full mt-1">
                     <input
                         type="text"
                         value={inputValue}
@@ -120,9 +126,9 @@ export function TagInput({
                     <button
                         type="button"
                         onClick={handleAddTag}
-                        disabled={!inputValue.trim() || (maxTags ? tags.length >= maxTags : false)}
+                        disabled={!inputValue.trim()}
                         className={clsx(
-                            'p-1.5 rounded-full transition-all duration-200',
+                            'p-1.5 rounded-full transition-all duration-200 shrink-0',
                             'disabled:opacity-30 disabled:cursor-not-allowed',
                             'enabled:bg-[#6d7749] enabled:text-white enabled:hover:bg-[#5d6541]',
                             'enabled:shadow-md enabled:hover:shadow-lg',

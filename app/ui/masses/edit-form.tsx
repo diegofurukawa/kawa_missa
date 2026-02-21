@@ -72,7 +72,7 @@ export default function EditMassForm({ mass, tenant, configs }: { mass: Mass; te
 
     // State for auto-save status per role
     const [saveStatus, setSaveStatus] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
-    const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout | null>>({});
+    const saveTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
 
     // Initialize date and time from existing mass (convert from UTC to local)
     const massDate = new Date(mass.date);

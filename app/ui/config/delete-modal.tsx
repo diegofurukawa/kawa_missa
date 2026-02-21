@@ -2,21 +2,19 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { deleteMass } from '@/lib/actions';
+import { deleteConfig } from '@/lib/actions';
 
-interface DeleteMassModalProps {
-  massId: string;
-  massLabel: string;
+interface DeleteConfigModalProps {
+  configId: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function DeleteMassModal({
-  massId,
-  massLabel,
+export function DeleteConfigModal({
+  configId,
   isOpen,
   onClose,
-}: DeleteMassModalProps) {
+}: DeleteConfigModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOpen) return null;
@@ -24,16 +22,16 @@ export function DeleteMassModal({
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      const result = await deleteMass(massId);
-      if (result.success) {
-        toast.success('Missa excluída com sucesso!');
+      const result = await deleteConfig(configId);
+      if (result?.success) {
+        toast.success(result.message || 'Configuração excluída com sucesso!');
         onClose();
       } else {
-        toast.error(result.message || 'Erro ao excluir missa');
+        toast.error(result?.message || 'Erro ao excluir configuração');
       }
     } catch (error) {
-      toast.error('Erro ao excluir missa');
-      console.error('Delete error:', error);
+      toast.error('Erro ao excluir configuração');
+      console.error('Delete config error:', error);
     } finally {
       setIsDeleting(false);
     }
@@ -58,7 +56,7 @@ export function DeleteMassModal({
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="delete-modal-title"
+      aria-labelledby="delete-config-modal-title"
     >
       <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
         <div className="flex items-start gap-4">
@@ -74,18 +72,17 @@ export function DeleteMassModal({
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M12 9v3.75m-9.303 3.376c0 .866.217 1.694.648 2.405L1.29 19.577a.75.75 0 001.06 1.06l3.894-3.894c.11.02.223.039.336.039h15.62a1.5 1.5 0 001.5-1.5V6.75a1.5 1.5 0 00-1.5-1.5H2.75a1.5 1.5 0 00-1.5 1.5v10.5z"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
                 />
               </svg>
             </div>
           </div>
           <div className="flex-1">
-            <h3 id="delete-modal-title" className="text-lg font-semibold text-gray-900">
+            <h3 id="delete-config-modal-title" className="text-lg font-semibold text-gray-900">
               Confirmar Exclusão
             </h3>
             <p className="mt-2 text-sm text-gray-600">
-              Tem certeza que deseja excluir a missa de{' '}
-              <strong className="block wrap-break-word">{massLabel}</strong>?
+              Tem certeza que deseja excluir esta configuração? Esta ação não pode ser desfeita.
             </p>
           </div>
         </div>

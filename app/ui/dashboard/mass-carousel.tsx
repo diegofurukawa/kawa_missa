@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import EditParticipantsModal from '../masses/edit-participants-modal';
 import { formatDateTime, getWeekday } from '@/lib/date-utils';
 import type { Config } from '@/lib/definitions';
@@ -11,6 +11,7 @@ interface Mass {
     id: string;
     slug: string;
     date: Date;
+    updatedAt: Date;
     type?: string;
     description?: string | null;
     participants: Record<string, string[]>;
@@ -84,10 +85,11 @@ export default function MassCarousel({ masses, isLoggedIn = false, config, tenan
         }
     };
 
-    const handleCloseModal = () => {
+    // CR-028: Estabilizado com useCallback para evitar stale closure em onClose do modal
+    const handleCloseModal = useCallback(() => {
         setIsModalOpen(false);
         setSelectedMass(null);
-    };
+    }, []);
 
     const handlePageChange = (newPage: number) => {
         setDesktopPage(newPage);
