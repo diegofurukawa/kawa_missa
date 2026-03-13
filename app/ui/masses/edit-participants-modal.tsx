@@ -127,7 +127,7 @@ export default function EditParticipantsModal({ mass, config, isOpen, onClose, i
                     if (result.currentUpdatedAt) {
                         serverUpdatedAtRef.current = result.currentUpdatedAt;
                     }
-                    toast.success('Salvo com sucesso');
+                    toast.success(result.warningMessage || 'Salvo com sucesso');
                     // Fecha o modal após salvar (não logado: volta para lista de Cards)
                     onClose();
                 } else if (result?.conflict) {

@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { Tag } from './tag';
 import clsx from 'clsx';
 import { toast } from 'sonner';
+import { normalizeParticipantInput } from '@/lib/participant-utils';
 
 interface TagInputProps {
     tags: string[];
@@ -34,9 +35,8 @@ export function TagInput({
     const [inputValue, setInputValue] = useState('');
 
     const handleAddTag = () => {
-        const trimmedValue = inputValue.trim();
-
-        if (!trimmedValue) return;
+        const parsedValues = normalizeParticipantInput(inputValue, allowDuplicates);
+        if (parsedValues.length === 0) return;
 
         if (maxTags && tags.length >= maxTags) {
             toast.info('Todas as vagas foram preenchidas!');
@@ -45,13 +45,30 @@ export function TagInput({
             return;
         }
 
-        if (!allowDuplicates && tags.includes(trimmedValue)) {
+        const availableSlots = typeof maxTags === 'number' ? Math.max(maxTags - tags.length, 0) : Number.POSITIVE_INFINITY;
+        const acceptedValues = parsedValues.slice(0, availableSlots);
+        const ignoredCount = Math.max(parsedValues.length - acceptedValues.length, 0);
+
+        if (acceptedValues.length === 0) {
+            if (ignoredCount > 0) {
+                toast.info('Todas as vagas para este campo ja foram preenchidas.');
+                onMaxTagsReached?.();
+            }
             setInputValue('');
             return;
         }
 
-        onTagsChange([...tags, trimmedValue]);
+        onTagsChange([...tags, ...acceptedValues]);
         setInputValue('');
+
+        if (ignoredCount > 0) {
+            const itemLabel = ignoredCount === 1 ? 'nome excedeu' : 'nomes excederam';
+            toast.info(`${ignoredCount} ${itemLabel} o limite deste campo e foram ignorados.`);
+        }
+
+        if (maxTags && tags.length + acceptedValues.length >= maxTags) {
+            onMaxTagsReached?.();
+        }
     };
 
     const handleRemoveTag = (indexToRemove: number) => {

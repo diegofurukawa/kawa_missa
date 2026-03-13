@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   // Add empty turbopack config to silence the warning
   turbopack: {},
   // Mark Prisma as external to ensure proper bundling
-  serverExternalPackages: ['@prisma/client', '@prisma/adapter-pg'],
+  serverExternalPackages: ['@prisma/client', '@prisma/adapter-pg', 'pdfkit'],
   /* config options here */
 };
 

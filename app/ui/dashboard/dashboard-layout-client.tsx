@@ -14,29 +14,29 @@ export default function DashboardLayoutClient({ children, isLoggedIn }: Dashboar
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
-        <div className="flex h-screen bg-[#f6f5f8]">
+        <div className="flex h-screen bg-[#f6f5f8] print:h-auto print:block">
             {/* Sidebar - Only render if logged in */}
             {isLoggedIn && (
                 <>
                     {/* Desktop Sidebar */}
-                    <div className="hidden md:block md:w-64 md:flex-shrink-0">
+                    <div className="hidden md:block md:w-64 md:flex-shrink-0 print:hidden">
                         <SideNav isOpen={true} onClose={() => {}} />
                     </div>
 
                     {/* Mobile Sidebar */}
-                    <div className="md:hidden">
+                    <div className="md:hidden print:hidden">
                         <SideNav isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
                     </div>
                 </>
             )}
 
             {/* Main Content Area */}
-            <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+            <div className="flex flex-col flex-1 min-w-0 overflow-hidden print:overflow-visible">
                 {/* Header - Only render if logged in */}
                 {isLoggedIn && <Header onMenuClick={() => setSidebarOpen(true)} />}
 
                 {/* Content - Scrollable */}
-                <main className={`flex-1 overflow-y-auto p-4 md:p-6 lg:p-12 bg-[#f6f5f8] ${!isLoggedIn ? 'pb-32 md:pb-4' : ''}`}>
+                <main className={`flex-1 overflow-y-auto p-4 md:p-6 lg:p-12 bg-[#f6f5f8] print:overflow-visible ${!isLoggedIn ? 'pb-32 md:pb-4' : ''}`}>
                     {children}
                 </main>
 

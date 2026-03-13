@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { Home, Calendar, Settings, LogOut, Cog, X, Users } from 'lucide-react';
+import { Home, Calendar, Settings, LogOut, Cog, X, Users, FileText } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
@@ -11,6 +11,7 @@ import Image from 'next/image';
 const links = [
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Missas', href: '/dashboard/masses', icon: Calendar },
+    { name: 'Relatórios', href: '/dashboard/reports', icon: FileText },
     { name: 'Usuários', href: '/dashboard/users', icon: Users },
     { name: 'Organização', href: '/dashboard/organization', icon: Settings },
     { name: 'Configuração', href: '/dashboard/config', icon: Cog },

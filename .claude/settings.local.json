@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(node -e \"require\\(''pdfkit''\\); console.log\\(''pdfkit ok''\\)\")",
+      "Bash(find /e/Wds/GitHub/kawa_missa -maxdepth 2 -name *.config.* -o -name next.config.*)",
+      "Bash(ls -la /e/Wds/GitHub/kawa_missa/app/*.tsx)"
+    ]
+  }
+}

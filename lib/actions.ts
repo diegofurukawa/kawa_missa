@@ -4,12 +4,13 @@ import { signIn, auth } from '@/auth';
 import { AuthError } from 'next-auth';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { format } from 'date-fns';
 import { fromLocalDateTime } from '@/lib/date-utils';
 import { headers } from 'next/headers';
+import { buildParticipantWarningMessage, parseParticipantsFromFormData } from '@/lib/participant-utils';
 
 // Type guard for Prisma errors
 function isPrismaError(error: unknown): error is { code: string; meta?: { target?: unknown } } {
@@ -319,6 +320,18 @@ const MassesSchema = z.object({
     configId: z.string().optional().nullable(),
 });
 
+async function getParticipantLimits(configId: string | null): Promise<Record<string, number>> {
+    if (!configId) return {};
+
+    const config = await prisma.config.findUnique({
+        where: { id: configId },
+        select: { participantConfig: true }
+    });
+
+    const participantConfig = config?.participantConfig as { roles?: [string, number][] } | undefined;
+    return Object.fromEntries((participantConfig?.roles || []).map(([roleName, limit]) => [roleName, limit]));
+}
+
 export async function createMass(prevState: unknown, formData: FormData) {
     const session = await auth();
     if (!session?.user?.email) return { message: 'Não autorizado. Por favor, faça login novamente.' };
@@ -364,22 +377,9 @@ export async function createMass(prevState: unknown, formData: FormData) {
     const dateObj = fromLocalDateTime(date);
     const slug = format(dateObj, "yyyyMMdd_HHmm");
 
-    // Parse participants from formData dynamic keys
-    // Format: role_${roleName} -> multiple participants per role (multiple values for same key)
-    const participants: Record<string, string[]> = {};
-    formData.forEach((value, key) => {
-        if (key.startsWith('role_')) {
-            const roleName = key.replace('role_', '');
-            const participantName = value.toString().trim();
-
-            if (participantName !== '') {
-                if (!participants[roleName]) {
-                    participants[roleName] = [];
-                }
-                participants[roleName].push(participantName);
-            }
-        }
-    });
+    const participantLimits = await getParticipantLimits(configId);
+    const { participants, warnings } = parseParticipantsFromFormData(formData, participantLimits);
+    const warningMessage = buildParticipantWarningMessage(warnings);
 
     try {
         await prisma.mass.create({
@@ -405,7 +405,11 @@ export async function createMass(prevState: unknown, formData: FormData) {
     }
 
     revalidatePath('/dashboard/masses');
-    return { message: 'Missa criada com sucesso!', success: true };
+    return {
+        message: warningMessage ? `Missa criada com sucesso! ${warningMessage}` : 'Missa criada com sucesso!',
+        success: true,
+        warningMessage,
+    };
 }
 
 export async function createMasses(prevState: unknown, formData: FormData) {
@@ -453,20 +457,9 @@ export async function createMasses(prevState: unknown, formData: FormData) {
 
     const { tenantId, dates: validatedDates, type, description } = validatedFields.data;
 
-    const participants: Record<string, string[]> = {};
-    formData.forEach((value, key) => {
-        if (key.startsWith('role_')) {
-            const roleName = key.replace('role_', '');
-            const participantName = value.toString().trim();
-
-            if (participantName !== '') {
-                if (!participants[roleName]) {
-                    participants[roleName] = [];
-                }
-                participants[roleName].push(participantName);
-            }
-        }
-    });
+    const participantLimits = await getParticipantLimits(configId);
+    const { participants, warnings } = parseParticipantsFromFormData(formData, participantLimits);
+    const warningMessage = buildParticipantWarningMessage(warnings);
 
     const results = {
         created: 0,
@@ -531,7 +524,11 @@ export async function createMasses(prevState: unknown, formData: FormData) {
     revalidatePath('/dashboard/masses');
 
     if (results.created > 0) {
-        return { message: message || 'Missas criadas!', success: true };
+        return {
+            message: warningMessage ? `${message || 'Missas criadas!'} ${warningMessage}` : (message || 'Missas criadas!'),
+            success: true,
+            warningMessage,
+        };
     } else {
         return { message: message || 'Nenhuma missa foi criada.' };
     }
@@ -602,21 +599,9 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
     const dateObj = fromLocalDateTime(date);
     const slug = format(dateObj, "yyyyMMdd_HHmm");
 
-    // Parse participants from formData dynamic keys
-    const participants: Record<string, string[]> = {};
-    formData.forEach((value, key) => {
-        if (key.startsWith('role_')) {
-            const roleName = key.replace('role_', '');
-            const participantName = value.toString().trim();
-
-            if (participantName !== '') {
-                if (!participants[roleName]) {
-                    participants[roleName] = [];
-                }
-                participants[roleName].push(participantName);
-            }
-        }
-    });
+    const participantLimits = await getParticipantLimits(configId);
+    const { participants, warnings } = parseParticipantsFromFormData(formData, participantLimits);
+    const warningMessage = buildParticipantWarningMessage(warnings);
 
     try {
         await prisma.mass.update({
@@ -643,7 +628,11 @@ export async function updateMass(id: string, prevState: unknown, formData: FormD
 
     revalidatePath('/dashboard/masses');
     revalidatePath('/dashboard');
-    return { message: 'Missa atualizada com sucesso!', success: true };
+    return {
+        message: warningMessage ? `Missa atualizada com sucesso! ${warningMessage}` : 'Missa atualizada com sucesso!',
+        success: true,
+        warningMessage,
+    };
 }
 
 export async function updateMassParticipants(id: string, prevState: unknown, formData: FormData) {
@@ -652,22 +641,6 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
 
     const session = await auth();
     
-    // Parse participants from formData dynamic keys
-    const participants: Record<string, string[]> = {};
-    formData.forEach((value, key) => {
-        if (key.startsWith('role_')) {
-            const roleName = key.replace('role_', '');
-            const participantName = value.toString().trim();
-
-            if (participantName !== '') {
-                if (!participants[roleName]) {
-                    participants[roleName] = [];
-                }
-                participants[roleName].push(participantName);
-            }
-        }
-    });
-
     try {
         // Verify the mass exists and get config for participant limits
         const mass = await prisma.mass.findUnique({
@@ -689,6 +662,13 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
             return { message: 'Missa não encontrada.' };
         }
 
+        const roleLimits = Object.fromEntries(
+            (((mass.config?.participantConfig as { roles?: [string, number][] } | undefined)?.roles) || [])
+                .map(([roleName, limit]) => [roleName, limit])
+        );
+        const { participants, warnings } = parseParticipantsFromFormData(formData, roleLimits);
+        const warningMessage = buildParticipantWarningMessage(warnings);
+
         // If authenticated, validate tenant access
         if (session?.user?.email) {
             const user = await prisma.user.findUnique({
@@ -698,27 +678,6 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
 
             if (!user || user.tenantId !== mass.tenantId) {
                 return { message: 'Não autorizado para atualizar esta missa.' };
-            }
-        }
-
-        // Validate participant limits if config exists
-        if (mass.config?.participantConfig) {
-            const config = mass.config.participantConfig as { roles?: [string, number][] };
-            const roleLimits = config.roles || [];
-
-            // Check each role against its limit
-            for (const [roleName, limit] of roleLimits) {
-                const submittedCount = participants[roleName]?.length || 0;
-                if (submittedCount > limit) {
-                    return {
-                        message: `Ops! O limite de ${limit} ${roleName}${limit === 1 ? '' : 's'} já foi atingido. ` +
-                            `Parece que outra pessoa também está se inscrevendo. ` +
-                            `Mas não se preocupe, sua participação é muito importante! ` +
-                            `Entre em contato com a paróquia para verificar outras oportunidades de servir.`,
-                        limitExceeded: true,
-                        role: roleName
-                    };
-                }
             }
         }
 
@@ -733,7 +692,7 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
             };
         }
 
-        // CR-025: Merge com dados existentes para preservar roles não submetidos neste request
+        // Preserva roles não submetidos no request atual realizando merge com participantes já salvos
         const existingParticipants = (mass.participants as Record<string, string[]>) || {};
         const mergedParticipants = { ...existingParticipants, ...participants };
 
@@ -747,7 +706,12 @@ export async function updateMassParticipants(id: string, prevState: unknown, for
 
         revalidatePath('/dashboard/public');
         revalidatePath('/dashboard');
-        return { message: 'Participantes atualizados com sucesso!', success: true, currentUpdatedAt: updated.updatedAt.toISOString() };
+        return {
+            message: warningMessage ? `Participantes atualizados com sucesso! ${warningMessage}` : 'Participantes atualizados com sucesso!',
+            success: true,
+            currentUpdatedAt: updated.updatedAt.toISOString(),
+            warningMessage,
+        };
     } catch (err) {
         console.error(err);
         if (isPrismaError(err)) {

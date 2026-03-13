@@ -14,7 +14,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
     const isLoading = status === 'loading';
 
     return (
-        <header className="sticky top-0 z-40 flex h-14 md:h-16 items-center justify-between bg-white border-b border-gray-200 px-4 md:px-6 shadow-sm">
+        <header className="sticky top-0 z-40 flex h-14 md:h-16 items-center justify-between bg-white border-b border-gray-200 px-4 md:px-6 shadow-sm print:hidden">
             {/* Mobile Menu Button */}
             <button
                 onClick={onMenuClick}

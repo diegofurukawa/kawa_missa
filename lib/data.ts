@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import type { Config } from '@/lib/definitions';
+import { buildMassReportSummary, type MassReportSummary } from '@/lib/report-utils';
+import { fromLocalDateTime } from '@/lib/date-utils';
 
 export async function getUserTenant() {
     const session = await auth();
@@ -209,6 +211,80 @@ export async function getMassById(id: string) {
             return null;
         }
     }
+}
+
+export async function getMassesForReports(tenantId: string, filters?: { from?: string; to?: string }) {
+    const whereClause: {
+        tenantId: string;
+        date?: {
+            gte?: Date;
+            lte?: Date;
+        };
+    } = {
+        tenantId,
+    };
+
+    if (filters?.from || filters?.to) {
+        whereClause.date = {};
+
+        if (filters.from) {
+            whereClause.date.gte = fromLocalDateTime(`${filters.from}T00:00`);
+        }
+
+        if (filters.to) {
+            whereClause.date.lte = fromLocalDateTime(`${filters.to}T23:59:59`);
+        }
+    }
+
+    const masses = await prisma.mass.findMany({
+        where: whereClause,
+        include: {
+            config: {
+                select: {
+                    participantConfig: true,
+                }
+            }
+        },
+        orderBy: {
+            date: 'asc'
+        },
+        take: 500,
+    });
+
+    return { masses, truncated: masses.length === 500 };
+}
+
+export async function getMassReportsByIds(tenantId: string, massIds: string[]): Promise<MassReportSummary[]> {
+    if (massIds.length === 0) return [];
+
+    const masses = await prisma.mass.findMany({
+        where: {
+            tenantId,
+            id: {
+                in: massIds
+            }
+        },
+        include: {
+            config: {
+                select: {
+                    participantConfig: true,
+                }
+            }
+        },
+        orderBy: {
+            date: 'asc'
+        }
+    });
+
+    return masses.map((mass) => buildMassReportSummary({
+        id: mass.id,
+        slug: mass.slug,
+        date: mass.date,
+        type: mass.type,
+        description: mass.description,
+        participants: mass.participants,
+        participantConfig: mass.config?.participantConfig as { roles?: [string, number][] } | undefined,
+    }));
 }
 
 export async function getAllTenants() {
